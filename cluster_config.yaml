@@ -78,7 +78,6 @@ existing_vms:
       key_path: ''
 
 
-# If the credentials are not specified, random ones will be used and written to a dedicated file
 credentials: # The values specified here will be deleted at the end of the installation
   rabbitmq_credentials:
     username: ''

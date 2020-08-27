@@ -3,7 +3,7 @@ import sys
 import shlex
 import logging
 import subprocess
-from os.path import expanduser, join, dirname, exists, isdir, isfile
+from os.path import dirname, exists, expanduser, isdir, isfile, join
 from socket import error as socket_error
 
 import yaml
@@ -127,7 +127,10 @@ class VM(object):
                       if use_sudo else
                       connection.run(command, warn=True, hide='stderr'))
             if result.failed:
-                raise ClusterInstallError(str(result.stderr.encode('utf-8')))
+                raise ClusterInstallError(
+                    'The command `{0}` on host {1} failed with the '
+                    'error {2}'.format(command, self.private_ip,
+                                       result.stderr.encode('utf-8')))
 
     def put_file(self, local_path, remote_path):
         if not isfile(local_path):
@@ -176,17 +179,11 @@ class VM(object):
                 self.put_dir(object_path, join(remote_dir_path, file_name))
 
     def path_exists(self, path):
-        with self._get_connection() as connection:
-            sftp_client = connection.sftp()
-            try:
-                sftp_client.open(path)
-            except IOError as e:
-                if e.errno == 2:
-                    return False
-                raise e
-            finally:
-                sftp_client.close()
-            return True
+        try:
+            self.run_command('test -e {0}'.format(path), use_sudo=True)
+        except ClusterInstallError:
+            return False
+        return True
 
 
 class CfyNode(VM):

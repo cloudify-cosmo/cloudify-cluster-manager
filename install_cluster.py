@@ -1,15 +1,15 @@
 import os
-import time
 import shutil
 import string
 import random
-from os.path import join, expanduser, exists
+from os.path import expanduser, exists, join
 
 import yaml
 
-from common import (logger, run, sudo, copy, move, CfyNode, get_dict_from_yaml,
-                    JUMP_HOST_DIR, JUMP_HOST_SSH_KEY_PATH,
-                    JUMP_HOST_CONFIG_PATH, JUMP_HOST_LICENSE_PATH)
+from common import (CfyNode, copy, get_dict_from_yaml,
+                    JUMP_HOST_CONFIG_PATH, JUMP_HOST_DIR,
+                    JUMP_HOST_LICENSE_PATH, JUMP_HOST_SSH_KEY_PATH,
+                    logger, move, run, sudo)
 
 INSTANCES_TYPES = ['postgresql', 'rabbitmq', 'manager']  # Order is important
 CERT_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
@@ -242,15 +242,7 @@ def _prepare_config_files(instances_dict, load_balancer_ip):
                                   load_balancer_ip)
 
 
-def _print_successful_installation_message(start_time):
-    running_time = time.time() - start_time
-    m, s = divmod(running_time, 60)
-    logger.info('Successfully installed an Active-Active cluster in ' 
-                '{0} minutes and {1} seconds'.format(int(m), int(s)))
-
-
 def main():
-    start_time = time.time()
     config = get_dict_from_yaml(JUMP_HOST_CONFIG_PATH)
     load_balancer_ip = config.get('load_balancer_ip')
     rpm_download_link = config.get('manager_rpm_download_link')
@@ -264,7 +256,6 @@ def main():
     _prepare_config_files(instances_dict, load_balancer_ip)
     _install_instances(instances_dict, rpm_download_link)
     _show_manager_ips(instances_dict['manager'])
-    _print_successful_installation_message(start_time)
 
 
 if __name__ == "__main__":
