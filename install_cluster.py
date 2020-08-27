@@ -72,8 +72,6 @@ def _write_certs_to_config(config_dict, config_section, node_name):
             ssl_inputs[ca_name] = ca_path
         config_dict['ssl_inputs'] = ssl_inputs
 
-        config_dict['prometheus']['blackbox_exporter']['ca_cert_path'] = \
-            ca_path
     else:
         config_dict[config_section]['cert_path'] = cert_path
         config_dict[config_section]['key_path'] = key_path

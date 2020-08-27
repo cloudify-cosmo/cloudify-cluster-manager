@@ -81,7 +81,8 @@ external_db_configuration:
   cloudify_username: cloudify
   cloudify_password: ''
 
-credentials: # The values specified here will be deleted at the end of the installation
+# If the credentials are not specified, random ones will be used and written to a dedicated file
+credentials:
   rabbitmq_credentials:
     username: ''
     password: ''
