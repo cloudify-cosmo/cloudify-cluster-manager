@@ -2,6 +2,7 @@ import os
 import shutil
 import string
 import random
+from collections import OrderedDict
 from os.path import expanduser, exists, join
 
 import yaml
@@ -11,7 +12,6 @@ from common import (CfyNode, copy, get_dict_from_yaml,
                     JUMP_HOST_LICENSE_PATH, JUMP_HOST_SSH_KEY_PATH,
                     logger, move, run, sudo)
 
-INSTANCES_TYPES = ['postgresql', 'rabbitmq', 'manager']  # Order is important
 CERT_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
 RPM_NAME = 'cloudify-manager-install.rpm'
 CONFIG_FILES = 'config_files'
@@ -166,7 +166,7 @@ def _prepare_manager_config_files(instances_dict,
 
 
 def _install_instances(instances_dict, rpm_download_link):
-    for instance_type in INSTANCES_TYPES:
+    for instance_type in instances_dict:
         logger.info('installing %s instances', instance_type)
         for instance in instances_dict[instance_type]:
             logger.info('Copying the %s directory to %s',
@@ -198,7 +198,8 @@ def _sort_instances_dict(instances_dict):
 
 
 def _get_instances_dict(config):
-    instances_dict = {instance_type: [] for instance_type in INSTANCES_TYPES}
+    instances_dict = OrderedDict(
+        (('postgresql', []), ('rabbitmq', []), ('manager', [])))
     username = config.get('machine_username')
     for node_name, node_dict in config.get('existing_vms').items():
         new_vm = CfyNode(node_dict.get('private_ip'),
