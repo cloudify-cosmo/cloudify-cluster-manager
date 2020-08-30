@@ -186,19 +186,6 @@ class VM(object):
         return True
 
 
-class CfyNode(VM):
-    def __init__(self,
-                 private_ip,
-                 public_ip,
-                 key_file_path,
-                 username,
-                 node_name):
-        super(CfyNode, self).__init__(private_ip, public_ip, key_file_path,
-                                      username)
-        self.name = node_name
-        self.node_type = node_name.split('-')[0]
-
-
 def get_dict_from_yaml(yaml_path):
     with open(yaml_path) as yaml_file:
         yaml_dict = yaml.load(yaml_file, yaml.Loader)

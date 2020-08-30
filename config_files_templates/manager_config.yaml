@@ -1,0 +1,61 @@
+manager:
+  private_ip: {{ node.private_ip }}
+  public_ip: {{ node.public_ip }}
+
+  security:
+    ssl_enabled: true
+    admin_password: admin
+
+  cloudify_license_path: {{ license_path }}
+
+rabbitmq:
+  username: cloudify
+  password: c10udify
+
+  cluster_members: {{ rabbitmq_cluster }}
+
+  ca_path: {{ ca_path }}
+
+postgresql_server:
+  ssl_enabled: true
+  ca_path: {{ ca_path }}
+
+  postgres_password: 'somesecretvalue123!'
+  cluster:
+    nodes: {{ postgresql_cluster }}
+
+postgresql_client:
+  ssl_enabled: true
+  server_password: 'somesecretvalue123!'
+  ssl_client_verification: true
+
+validations:
+  minimum_required_total_physical_memory_in_mb: 1024
+
+{% if load_balancer_ip %}
+networks:
+  load_balancer: {{ load_balancer_ip }}
+{% endif %}
+
+ssl_inputs:
+  external_cert_path: {{ node.cert_path }}
+  external_key_path: {{ node.key_path }}
+  internal_cert_path: {{ node.cert_path }}
+  internal_key_path: {{ node.key_path }}
+  postgresql_client_cert_path: {{ node.cert_path }}
+  postgresql_client_key_path: {{ node.key_path }}
+  ca_cert_path: {{ ca_path }}
+  external_ca_cert_path: {{ ca_path }}
+
+prometheus:
+  credentials:
+    username: 'monitoringusername'
+    password: 'longyeteasytorememberstringasapassword'
+
+  cert_path: {{ node.cert_path }}
+  key_path: {{ node.key_path }}
+  ca_path: {{ ca_path }}
+
+services_to_install:
+  - manager_service
+  - monitoring_service

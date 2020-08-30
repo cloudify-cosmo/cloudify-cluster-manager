@@ -4,11 +4,10 @@ import shutil
 import string
 import random
 from collections import OrderedDict
-from os.path import expanduser, exists, join
+from os.path import expanduser, exists, join, dirname
+from jinja2 import Environment, FileSystemLoader
 
-import yaml
-
-from common import (CfyNode, copy, get_dict_from_yaml,
+from common import (VM, copy, get_dict_from_yaml,
                     JUMP_HOST_CONFIG_PATH, JUMP_HOST_DIR,
                     JUMP_HOST_LICENSE_PATH, JUMP_HOST_SSH_KEY_PATH,
                     logger, move, run, sudo)
@@ -27,6 +26,21 @@ REMOTE_CLUSTER_INSTALL_DIR = join('/tmp', TOP_DIR_NAME)
 REMOTE_CERTS_DIR = join(REMOTE_CLUSTER_INSTALL_DIR, 'certs')
 REMOTE_RPM_PATH = join(REMOTE_CLUSTER_INSTALL_DIR, RPM_NAME)
 REMOTE_CONFIG_DIR = join(REMOTE_CLUSTER_INSTALL_DIR, CONFIG_FILES)
+REMOTE_CA_PATH = join(REMOTE_CERTS_DIR, 'ca.pem')
+
+
+class CfyNode(VM):
+    def __init__(self,
+                 private_ip,
+                 public_ip,
+                 key_file_path,
+                 username,
+                 node_name):
+        super(CfyNode, self).__init__(private_ip, public_ip,
+                                      key_file_path, username)
+        self.name = node_name
+        self.cert_path = join(REMOTE_CERTS_DIR, self.name + '_cert.pem')
+        self.key_path = join(REMOTE_CERTS_DIR, self.name + '_key.pem')
 
 
 def _generate_instance_certificate(instance):
@@ -46,7 +60,7 @@ def _generate_certs(instances_dict):
             _generate_instance_certificate(instance)
     copy(join(CERT_PATH, 'ca.crt'), join(CERT_PATH, 'ca.pem'))
     os.mkdir(LOCAL_CERTS_DIR)
-    copy(CERT_PATH + '/.', LOCAL_CERTS_DIR)
+    copy(join(CERT_PATH, '.'), LOCAL_CERTS_DIR)
     shutil.rmtree(CERT_PATH)
 
 
@@ -87,31 +101,6 @@ def _get_postgresql_cluster_members(postgresql_instances):
         for j in range(len(postgresql_instances))}
 
 
-def _prepare_postgresql_config_files(instances_dict):
-    logger.info('Preparing PostgreSQL config files')
-    for node in instances_dict['postgresql']:
-        config_dict = get_dict_from_yaml(join(JUMP_HOST_DIR,
-                                              'postgresql_config.yaml'))
-        _write_certs_to_config(config_dict, 'postgresql_server', node.name)
-        config_dict['postgresql_server']['cluster']['nodes'] = \
-            _get_postgresql_cluster_members(instances_dict['postgresql'])
-
-        config_dict['manager']['private_ip'] = node.private_ip
-        config_dict['manager']['public_ip'] = node.public_ip
-        _create_config_file(config_dict, node.name)
-
-
-def _create_config_file(config_dict, node_name):
-    config_path = join(LOCAL_CONFIG_DIR, '{0}_config.yaml'.format(node_name))
-    with open(config_path, 'w') as config_file:
-        yaml.dump(config_dict, config_file)
-
-
-def _random_credential_generator():
-    return ''.join(random.choice(string.ascii_lowercase + string.digits)
-                   for _ in range(40))
-
-
 def _get_rabbitmq_cluster_members(rabbitmq_instances):
     return {
         rabbitmq_instances[j].name: {
@@ -119,52 +108,76 @@ def _get_rabbitmq_cluster_members(rabbitmq_instances):
         } for j in range(len(rabbitmq_instances))}
 
 
-def _prepare_rabbitmq_config_files(instances_dict, rabbitmq_credentials):
+def _prepare_postgresql_config_files(template, postgresql_instances):
+    logger.info('Preparing PostgreSQL config files')
+    postgresql_cluster = _get_postgresql_cluster_members(postgresql_instances)
+    for node in postgresql_instances:
+        rendered_data = template.render(node=node,
+                                        ca_path=REMOTE_CA_PATH,
+                                        postgresql_cluster=postgresql_cluster)
+        _create_config_file(rendered_data, node.name)
+
+
+def _prepare_rabbitmq_config_files(template, rabbitmq_instances):
     logger.info('Preparing RabbitMQ config files')
-    first_rabbitmq = instances_dict['rabbitmq'][0]
-    rabbitmq_username, rabbitmq_password = rabbitmq_credentials
-    for i, node in enumerate(instances_dict['rabbitmq']):
-        config_dict = get_dict_from_yaml(join(JUMP_HOST_DIR,
-                                              'rabbitmq_config.yaml'))
-        config_dict['rabbitmq']['username'] = rabbitmq_username
-        config_dict['rabbitmq']['password'] = rabbitmq_password
-        config_dict['rabbitmq']['cluster_members'] = \
-            _get_rabbitmq_cluster_members(instances_dict['rabbitmq'])
-        _write_certs_to_config(config_dict, 'rabbitmq', node.name)
-        config_dict['rabbitmq']['nodename'] = node.name
-        if i != 0:
-            config_dict['rabbitmq']['join_cluster'] = first_rabbitmq.name
-
-        config_dict['manager']['private_ip'] = node.private_ip
-        config_dict['manager']['public_ip'] = node.public_ip
-        _create_config_file(config_dict, node.name)
+    rabbitmq_cluster = _get_rabbitmq_cluster_members(rabbitmq_instances)
+    for i, node in enumerate(rabbitmq_instances):
+        join_cluster = rabbitmq_instances[0].name if i > 0 else None
+        rendered_data = template.render(node=node,
+                                        ca_path=REMOTE_CA_PATH,
+                                        join_cluster=join_cluster,
+                                        rabbitmq_cluster=rabbitmq_cluster)
+        _create_config_file(rendered_data, node.name)
 
 
-def _prepare_manager_config_files(instances_dict,
-                                  rabbitmq_credentials,
+def _prepare_manager_config_files(template,
+                                  instances_dict,
                                   load_balancer_ip):
     logger.info('Preparing Manager config files')
-    ca_path = join(REMOTE_CERTS_DIR, 'ca.pem')
+    license_path = join(REMOTE_CLUSTER_INSTALL_DIR, 'license.yaml')
+    postgresql_cluster = _get_postgresql_cluster_members(
+        instances_dict['postgresql'])
+    rabbitmq_cluster = _get_rabbitmq_cluster_members(
+        instances_dict['rabbitmq'])
     for node in instances_dict['manager']:
-        config_dict = get_dict_from_yaml(join(JUMP_HOST_DIR,
-                                              'manager_config.yaml'))
-        config_dict['manager']['hostname'] = node.name
-        config_dict['manager']['private_ip'] = node.private_ip
-        config_dict['manager']['public_ip'] = node.public_ip
-        config_dict['manager']['cloudify_license_path'] = \
-            join(REMOTE_CLUSTER_INSTALL_DIR, 'license.yaml')
-        config_dict['rabbitmq']['cluster_members'] = \
-            _get_rabbitmq_cluster_members(instances_dict['rabbitmq'])
-        config_dict['rabbitmq']['username'] = rabbitmq_credentials[0]
-        config_dict['rabbitmq']['password'] = rabbitmq_credentials[1]
-        config_dict['rabbitmq']['ca_path'] = ca_path
-        config_dict['postgresql_server']['cluster']['nodes'] = \
-            _get_postgresql_cluster_members(instances_dict['postgresql'])
-        config_dict['postgresql_server']['ca_path'] = ca_path
-        if load_balancer_ip:
-            config_dict['networks'] = {'load_balancer': load_balancer_ip}
-        _write_certs_to_config(config_dict, 'manager', node.name)
-        _create_config_file(config_dict, node.name)
+        rendered_data = template.render(node=node,
+                                        ca_path=REMOTE_CA_PATH,
+                                        license_path=license_path,
+                                        load_balancer_ip=load_balancer_ip,
+                                        rabbitmq_cluster=rabbitmq_cluster,
+                                        postgresql_cluster=postgresql_cluster)
+        _create_config_file(rendered_data, node.name)
+
+
+def _create_config_file(rendered_data, node_name):
+    config_path = join(LOCAL_CONFIG_DIR, '{0}_config.yaml'.format(node_name))
+    with open(config_path, 'w') as config_file:
+        config_file.write(rendered_data)
+
+
+def _prepare_config_files(instances_dict, load_balancer_ip):
+    os.mkdir(join(LOCAL_CLUSTER_INSTALL_DIR, 'config_files'))
+    templates_env = Environment(
+        loader=FileSystemLoader(
+            join(dirname(__file__), 'config_files_templates')))
+
+    _prepare_postgresql_config_files(
+        templates_env.get_template('postgresql_config.yaml'),
+        instances_dict['postgresql'])
+
+    _prepare_rabbitmq_config_files(
+        templates_env.get_template('rabbitmq_config.yaml'),
+        instances_dict['rabbitmq'])
+
+    _prepare_manager_config_files(
+        templates_env.get_template('manager_config.yaml'),
+        instances_dict,
+        load_balancer_ip)
+
+
+def _random_credential_generator():
+    return ''.join(random.choice(string.ascii_lowercase + string.digits)
+                   for _ in range(40))
 
 
 def _install_instances(instances_dict, rpm_download_link):
@@ -209,7 +222,7 @@ def _get_instances_dict(config):
                          JUMP_HOST_SSH_KEY_PATH,
                          username,
                          node_name)
-        instances_dict[new_vm.node_type].append(new_vm)
+        instances_dict[node_name.split('-')[0]].append(new_vm)
     _sort_instances_dict(instances_dict)
     return instances_dict
 
@@ -221,7 +234,7 @@ def _create_cluster_install_directory():
         os.rename(LOCAL_CLUSTER_INSTALL_DIR, join(JUMP_HOST_DIR, new_dirname))
         for dir_name in os.listdir(JUMP_HOST_DIR):  # Delete old dir
             if (TOP_DIR_NAME in dir_name) and (dir_name < new_dirname):
-                shutil.rmtree(JUMP_HOST_DIR + dir_name)
+                shutil.rmtree(join(JUMP_HOST_DIR, dir_name))
                 break  # There is only one
     os.mkdir(LOCAL_CLUSTER_INSTALL_DIR)
 
@@ -237,16 +250,6 @@ def _show_manager_ips(manager_nodes):
                                                 manager.public_ip)
     logger.info('In order to connect to one of the managers, use one of the '
                 'following IPs:\n%s', managers_str)
-
-
-def _prepare_config_files(instances_dict, load_balancer_ip):
-    os.mkdir(join(LOCAL_CLUSTER_INSTALL_DIR, 'config_files'))
-    _prepare_postgresql_config_files(instances_dict)
-    rabbitmq_credentials = (_random_credential_generator(),
-                            _random_credential_generator())
-    _prepare_rabbitmq_config_files(instances_dict, rabbitmq_credentials)
-    _prepare_manager_config_files(instances_dict, rabbitmq_credentials,
-                                  load_balancer_ip)
 
 
 def main():

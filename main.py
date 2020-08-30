@@ -1,6 +1,6 @@
 import time
 import argparse
-from os.path import join, dirname
+from os.path import join, dirname, isfile, isdir
 
 from common import (get_dict_from_yaml, JUMP_HOST_CONFIG_PATH, JUMP_HOST_DIR,
                     JUMP_HOST_LICENSE_PATH, JUMP_HOST_SSH_KEY_PATH,
@@ -23,9 +23,7 @@ def _prepare_jump_host(jump_host, license_path, config_path):
         'requirements.txt',
         INSTALL_CLUSTER_SCRIPT,
         'common.py',
-        'manager_config.yaml',
-        'postgresql_config.yaml',
-        'rabbitmq_config.yaml',
+        'config_files_templates'
     ]
     logger.info('Preparing the jump-host')
     if jump_host.path_exists(JUMP_HOST_DIR):
@@ -35,8 +33,12 @@ def _prepare_jump_host(jump_host, license_path, config_path):
     jump_host.run_command('mkdir {0}'.format(JUMP_HOST_DIR))
 
     for file_name in scp_files_list:
-        jump_host.put_file(join(dirname(__file__), file_name),
-                           join(JUMP_HOST_DIR, file_name))
+        if isfile(file_name):
+            jump_host.put_file(join(dirname(__file__), file_name),
+                               join(JUMP_HOST_DIR, file_name))
+        if isdir(file_name):
+            jump_host.put_dir(join(dirname(__file__), file_name),
+                              join(JUMP_HOST_DIR, file_name))
     for command in commands_list:
         jump_host.run_command(command)
 
@@ -49,7 +51,7 @@ def _prepare_jump_host(jump_host, license_path, config_path):
 def _print_successful_installation_message(start_time):
     running_time = time.time() - start_time
     m, s = divmod(running_time, 60)
-    logger.info('Successfully installed an Active-Active cluster in ' 
+    logger.info('Successfully installed an Active-Active cluster in '
                 '{0} minutes and {1} seconds'.format(int(m), int(s)))
 
 
