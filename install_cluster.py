@@ -1,4 +1,5 @@
 import os
+import time
 import shutil
 import string
 import random
@@ -15,16 +16,17 @@ from common import (CfyNode, copy, get_dict_from_yaml,
 CERT_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
 RPM_NAME = 'cloudify-manager-install.rpm'
 CONFIG_FILES = 'config_files'
+TOP_DIR_NAME = 'cluster_install'
 
 JUMP_HOST_RPM_PATH = join(JUMP_HOST_DIR, RPM_NAME)
-LOCAL_INSTALL_CLUSTER_DIR = join(JUMP_HOST_DIR, 'cluster_install')
-LOCAL_CERTS_DIR = join(LOCAL_INSTALL_CLUSTER_DIR, 'certs')
-LOCAL_CONFIG_DIR = join(LOCAL_INSTALL_CLUSTER_DIR, CONFIG_FILES)
+LOCAL_CLUSTER_INSTALL_DIR = join(JUMP_HOST_DIR, TOP_DIR_NAME)
+LOCAL_CERTS_DIR = join(LOCAL_CLUSTER_INSTALL_DIR, 'certs')
+LOCAL_CONFIG_DIR = join(LOCAL_CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
-REMOTE_INSTALL_CLUSTER_DIR = join('/tmp', 'cluster_install')
-REMOTE_CERTS_DIR = join(REMOTE_INSTALL_CLUSTER_DIR, 'certs')
-REMOTE_RPM_PATH = join(REMOTE_INSTALL_CLUSTER_DIR, RPM_NAME)
-REMOTE_CONFIG_DIR = join(REMOTE_INSTALL_CLUSTER_DIR, CONFIG_FILES)
+REMOTE_CLUSTER_INSTALL_DIR = join('/tmp', TOP_DIR_NAME)
+REMOTE_CERTS_DIR = join(REMOTE_CLUSTER_INSTALL_DIR, 'certs')
+REMOTE_RPM_PATH = join(REMOTE_CLUSTER_INSTALL_DIR, RPM_NAME)
+REMOTE_CONFIG_DIR = join(REMOTE_CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 
 def _generate_instance_certificate(instance):
@@ -150,7 +152,7 @@ def _prepare_manager_config_files(instances_dict,
         config_dict['manager']['private_ip'] = node.private_ip
         config_dict['manager']['public_ip'] = node.public_ip
         config_dict['manager']['cloudify_license_path'] = \
-            join(REMOTE_INSTALL_CLUSTER_DIR, 'license.yaml')
+            join(REMOTE_CLUSTER_INSTALL_DIR, 'license.yaml')
         config_dict['rabbitmq']['cluster_members'] = \
             _get_rabbitmq_cluster_members(instances_dict['rabbitmq'])
         config_dict['rabbitmq']['username'] = rabbitmq_credentials[0]
@@ -170,9 +172,9 @@ def _install_instances(instances_dict, rpm_download_link):
         logger.info('installing %s instances', instance_type)
         for instance in instances_dict[instance_type]:
             logger.info('Copying the %s directory to %s',
-                        LOCAL_INSTALL_CLUSTER_DIR, instance.name)
-            instance.put_dir(LOCAL_INSTALL_CLUSTER_DIR,
-                             REMOTE_INSTALL_CLUSTER_DIR,
+                        LOCAL_CLUSTER_INSTALL_DIR, instance.name)
+            instance.put_dir(LOCAL_CLUSTER_INSTALL_DIR,
+                             REMOTE_CLUSTER_INSTALL_DIR,
                              override=True)
             logger.info('Installing Cloudify RPM on %s', instance.name)
             instance.run_command('curl -o {0} {1}'.format(REMOTE_RPM_PATH,
@@ -212,15 +214,19 @@ def _get_instances_dict(config):
     return instances_dict
 
 
-def _create_install_cluster_directory():
-    logger.info('Creating `remote_cluster_install` directory')
-    run(['rm', '-rf', '{}_old'.format(LOCAL_INSTALL_CLUSTER_DIR)])
-    if exists(LOCAL_INSTALL_CLUSTER_DIR):
-        run(['mv', LOCAL_INSTALL_CLUSTER_DIR,
-             '{0}_old'.format(LOCAL_INSTALL_CLUSTER_DIR)])
-    os.mkdir(LOCAL_INSTALL_CLUSTER_DIR)
+def _create_cluster_install_directory():
+    logger.info('Creating `{0}` directory'.format(TOP_DIR_NAME))
+    if exists(LOCAL_CLUSTER_INSTALL_DIR):
+        new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + TOP_DIR_NAME)
+        os.rename(LOCAL_CLUSTER_INSTALL_DIR, join(JUMP_HOST_DIR, new_dirname))
+        for dir_name in os.listdir(JUMP_HOST_DIR):  # Delete old dir
+            if (TOP_DIR_NAME in dir_name) and (dir_name < new_dirname):
+                shutil.rmtree(JUMP_HOST_DIR + dir_name)
+                break  # There is only one
+    os.mkdir(LOCAL_CLUSTER_INSTALL_DIR)
+
     copy(JUMP_HOST_LICENSE_PATH,
-         join(LOCAL_INSTALL_CLUSTER_DIR, 'license.yaml'))
+         join(LOCAL_CLUSTER_INSTALL_DIR, 'license.yaml'))
 
 
 def _show_manager_ips(manager_nodes):
@@ -232,7 +238,7 @@ def _show_manager_ips(manager_nodes):
 
 
 def _prepare_config_files(instances_dict, load_balancer_ip):
-    os.mkdir(join(LOCAL_INSTALL_CLUSTER_DIR, 'config_files'))
+    os.mkdir(join(LOCAL_CLUSTER_INSTALL_DIR, 'config_files'))
     _prepare_postgresql_config_files(instances_dict)
     rabbitmq_credentials = (_random_credential_generator(),
                             _random_credential_generator())
@@ -246,7 +252,7 @@ def main():
     load_balancer_ip = config.get('load_balancer_ip')
     rpm_download_link = config.get('manager_rpm_download_link')
     instances_dict = _get_instances_dict(config)
-    _create_install_cluster_directory()
+    _create_cluster_install_directory()
 
     logger.info('Downloading Cloudify Manager')
     run(['curl', '-o', JUMP_HOST_RPM_PATH, rpm_download_link])
