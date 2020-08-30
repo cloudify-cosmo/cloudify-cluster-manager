@@ -44,7 +44,7 @@ def _generate_certs(instances_dict):
             _generate_instance_certificate(instance)
     copy(join(CERT_PATH, 'ca.crt'), join(CERT_PATH, 'ca.pem'))
     os.mkdir(LOCAL_CERTS_DIR)
-    copy(CERT_PATH+'/.', LOCAL_CERTS_DIR)
+    copy(CERT_PATH + '/.', LOCAL_CERTS_DIR)
     shutil.rmtree(CERT_PATH)
 
 
@@ -107,7 +107,7 @@ def _create_config_file(config_dict, node_name):
 
 def _random_credential_generator():
     return ''.join(random.choice(string.ascii_lowercase + string.digits)
-                   for _ in range(6))
+                   for _ in range(40))
 
 
 def _get_rabbitmq_cluster_members(rabbitmq_instances):
@@ -187,7 +187,7 @@ def _install_instances(instances_dict, rpm_download_link):
 
             logger.info('Installing %s', instance.name)
             instance.run_command(
-                'cfy_manager install --private-ip {0} --public-ip {1}'.format(
+                'cfy_manager install'.format(
                     instance.private_ip, instance.public_ip))
 
 
