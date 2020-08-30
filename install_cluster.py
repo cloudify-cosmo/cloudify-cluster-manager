@@ -232,7 +232,9 @@ def _create_cluster_install_directory():
 def _show_manager_ips(manager_nodes):
     managers_str = ''
     for manager in manager_nodes:
-        managers_str += '{0}: {1}\n'.format(manager.name, manager.public_ip)
+        managers_str += '{0}: {1}@{2}\n'.format(manager.name,
+                                                manager.username,
+                                                manager.public_ip)
     logger.info('In order to connect to one of the managers, use one of the '
                 'following IPs:\n%s', managers_str)
 
