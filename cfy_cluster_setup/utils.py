@@ -1,6 +1,7 @@
 import os
 import sys
 import shlex
+import socket
 import logging
 import subprocess
 from os.path import dirname, exists, expanduser, isdir, isfile, join
@@ -9,15 +10,6 @@ from socket import error as socket_error
 import yaml
 from fabric import Connection
 from paramiko import AuthenticationException
-
-
-DIR_NAME = 'cloudify_cluster_setup'
-JUMP_HOST_DIR = join('/tmp', DIR_NAME)
-OLD_JUMP_HOST_DIR = join('/tmp', DIR_NAME+'_old')
-JUMP_HOST_SSH_KEY_PATH = join(JUMP_HOST_DIR, 'jump_host_key.pem')
-JUMP_HOST_CONFIG_PATH = join(JUMP_HOST_DIR, 'config_cluster.yaml')
-JUMP_HOST_LICENSE_PATH = join(JUMP_HOST_DIR, 'cloudify_license.yaml')
-JUMP_HOST_CREDENTIALS_FILE = join(JUMP_HOST_DIR, 'secret_credentials.yaml')
 
 
 def init_logger():
@@ -121,17 +113,19 @@ class VM(object):
 
         return connection
 
-    def run_command(self, command, use_sudo=False):
+    def run_command(self, command, hide_stdout=False, use_sudo=False):
+        hide = 'both' if hide_stdout else 'stderr'
         with self._get_connection() as connection:
             logger.debug('Running `%s` on %s', command, self.private_ip)
-            result = (connection.sudo(command, warn=True, hide='stderr')
+            result = (connection.sudo(command, warn=True, hide=hide)
                       if use_sudo else
-                      connection.run(command, warn=True, hide='stderr'))
+                      connection.run(command, warn=True, hide=hide))
             if result.failed:
                 raise ClusterInstallError(
                     'The command `{0}` on host {1} failed with the '
                     'error {2}'.format(command, self.private_ip,
                                        result.stderr.encode('utf-8')))
+            return result.stdout
 
     def put_file(self, local_path, remote_path):
         if not isfile(local_path):
@@ -142,12 +136,6 @@ class VM(object):
             logger.debug('Copying %s to %s on host %a',
                          local_path, remote_path, self.private_ip)
             connection.put(expanduser(local_path), remote_path)
-
-    def get_file(self, remote_path, local_path):
-        with self._get_connection() as connection:
-            logger.debug('Copying %s to %s from host %a',
-                         remote_path, local_path, self.private_ip)
-            connection.get(remote_path, expanduser(local_path))
 
     def put_dir(self, local_dir_path, remote_dir_path, override=False):
         """Copy a local directory to a remote host.
@@ -179,15 +167,27 @@ class VM(object):
             elif isdir(object_path):
                 self.put_dir(object_path, join(remote_dir_path, file_name))
 
-    def path_exists(self, path):
-        try:
-            self.run_command('test -e {0}'.format(path), use_sudo=True)
-        except ClusterInstallError:
-            return False
-        return True
-
 
 def get_dict_from_yaml(yaml_path):
     with open(yaml_path) as yaml_file:
         yaml_dict = yaml.load(yaml_file, yaml.Loader)
     return yaml_dict
+
+
+def cloudify_is_installed(cloudify_rpm):
+    proc = run(['rpm', '-qa'])
+    if cloudify_rpm in proc.aggr_stdout:
+        return True
+    return False
+
+
+def yum_is_present():
+    try:
+        run(['command', '-v', 'yum'])
+        return True
+    except ProcessExecutionError:
+        return False
+
+
+def current_host_ip():
+    return socket.gethostbyname(socket.getfqdn())

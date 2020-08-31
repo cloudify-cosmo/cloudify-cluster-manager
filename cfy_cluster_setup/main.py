@@ -3,32 +3,34 @@ import time
 import shutil
 import string
 import random
+import argparse
 from collections import OrderedDict
-from os.path import expanduser, exists, join, dirname
+from os.path import basename, dirname, exists, expanduser, join, splitext
 
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from common import (VM, copy, get_dict_from_yaml, JUMP_HOST_CONFIG_PATH,
-                    JUMP_HOST_CREDENTIALS_FILE, JUMP_HOST_DIR,
-                    JUMP_HOST_LICENSE_PATH, JUMP_HOST_SSH_KEY_PATH,
-                    logger, move, run, sudo)
+from .utils import (cloudify_is_installed, ClusterInstallError, copy,
+                    current_host_ip, get_dict_from_yaml, logger, move, run,
+                    sudo, VM, yum_is_present)
 
-CERT_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
-RPM_NAME = 'cloudify-manager-install.rpm'
+
+CERTS_DIR_NAME = 'certs'
+CFY_CERTS_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
 CONFIG_FILES = 'config_files'
-TOP_DIR_NAME = 'cluster_install'
+DIR_NAME = 'cloudify_cluster_setup'
+RPM_NAME = 'cloudify-manager-install.rpm'
+TOP_DIR = '/tmp'
 
-JUMP_HOST_RPM_PATH = join(JUMP_HOST_DIR, RPM_NAME)
-LOCAL_CLUSTER_INSTALL_DIR = join(JUMP_HOST_DIR, TOP_DIR_NAME)
-LOCAL_CERTS_DIR = join(LOCAL_CLUSTER_INSTALL_DIR, 'certs')
-LOCAL_CONFIG_DIR = join(LOCAL_CLUSTER_INSTALL_DIR, CONFIG_FILES)
+RPM_PATH = join(TOP_DIR, RPM_NAME)
+CLUSTER_INSTALL_DIR = join(TOP_DIR, DIR_NAME)
+CERTS_DIR = join(CLUSTER_INSTALL_DIR, CERTS_DIR_NAME)
+CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
-REMOTE_CLUSTER_INSTALL_DIR = join('/tmp', TOP_DIR_NAME)
-REMOTE_CERTS_DIR = join(REMOTE_CLUSTER_INSTALL_DIR, 'certs')
-REMOTE_RPM_PATH = join(REMOTE_CLUSTER_INSTALL_DIR, RPM_NAME)
-REMOTE_CONFIG_DIR = join(REMOTE_CLUSTER_INSTALL_DIR, CONFIG_FILES)
-REMOTE_CA_PATH = join(REMOTE_CERTS_DIR, 'ca.pem')
+CA_PATH = join(CERTS_DIR, 'ca.pem')
+
+CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
+CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), 'cfy_cluster_config.yaml')
 
 
 class CfyNode(VM):
@@ -41,17 +43,17 @@ class CfyNode(VM):
         super(CfyNode, self).__init__(private_ip, public_ip,
                                       key_file_path, username)
         self.name = node_name
-        self.cert_path = join(REMOTE_CERTS_DIR, self.name + '_cert.pem')
-        self.key_path = join(REMOTE_CERTS_DIR, self.name + '_key.pem')
+        self.cert_path = join(CERTS_DIR, self.name + '_cert.pem')
+        self.key_path = join(CERTS_DIR, self.name + '_key.pem')
 
 
 def _generate_instance_certificate(instance):
     run(['cfy_manager', 'generate-test-cert', '-s',
          instance.private_ip+','+instance.public_ip])
-    move(join(CERT_PATH, instance.private_ip+'.crt'),
-         join(CERT_PATH, instance.name+'_cert.pem'))
-    new_key_path = join(CERT_PATH, instance.name+'_key.pem')
-    move(join(CERT_PATH, instance.private_ip+'.key'), new_key_path)
+    move(join(CFY_CERTS_PATH, instance.private_ip + '.crt'),
+         join(CFY_CERTS_PATH, instance.name + '_cert.pem'))
+    new_key_path = join(CFY_CERTS_PATH, instance.name + '_key.pem')
+    move(join(CFY_CERTS_PATH, instance.private_ip + '.key'), new_key_path)
     sudo(['chmod', '444', new_key_path])
 
 
@@ -60,40 +62,10 @@ def _generate_certs(instances_dict):
     for instances_list in instances_dict.values():
         for instance in instances_list:
             _generate_instance_certificate(instance)
-    copy(join(CERT_PATH, 'ca.crt'), join(CERT_PATH, 'ca.pem'))
-    os.mkdir(LOCAL_CERTS_DIR)
-    copy(join(CERT_PATH, '.'), LOCAL_CERTS_DIR)
-    shutil.rmtree(CERT_PATH)
-
-
-def _write_certs_to_config(config_dict, config_section, node_name):
-    cert_path = join(REMOTE_CERTS_DIR, node_name+'_cert.pem')
-    key_path = join(REMOTE_CERTS_DIR, node_name+'_key.pem')
-    ca_path = join(REMOTE_CERTS_DIR, 'ca.pem')
-
-    config_dict['prometheus']['cert_path'] = cert_path
-    config_dict['prometheus']['key_path'] = key_path
-    config_dict['prometheus']['ca_path'] = ca_path
-
-    if config_section == 'manager':
-        ssl_inputs = {}
-        cert_names = ['internal_cert_path', 'external_cert_path',
-                      'postgresql_client_cert_path']
-        key_names = ['internal_key_path', 'external_key_path',
-                     'postgresql_client_key_path']
-        ca_names = ['ca_cert_path', 'external_ca_cert_path']
-        for cert_name in cert_names:
-            ssl_inputs[cert_name] = cert_path
-        for key_name in key_names:
-            ssl_inputs[key_name] = key_path
-        for ca_name in ca_names:
-            ssl_inputs[ca_name] = ca_path
-        config_dict['ssl_inputs'] = ssl_inputs
-
-    else:
-        config_dict[config_section]['cert_path'] = cert_path
-        config_dict[config_section]['key_path'] = key_path
-        config_dict[config_section]['ca_path'] = ca_path
+    copy(join(CFY_CERTS_PATH, 'ca.crt'), join(CFY_CERTS_PATH, 'ca.pem'))
+    os.mkdir(CERTS_DIR)
+    copy(join(CFY_CERTS_PATH, '.'), CERTS_DIR)
+    shutil.rmtree(CFY_CERTS_PATH)
 
 
 def _get_postgresql_cluster_members(postgresql_instances):
@@ -118,7 +90,7 @@ def _prepare_postgresql_config_files(template,
     for node in postgresql_instances:
         rendered_data = template.render(node=node,
                                         creds=credentials,
-                                        ca_path=REMOTE_CA_PATH,
+                                        ca_path=CA_PATH,
                                         postgresql_cluster=postgresql_cluster)
         _create_config_file(rendered_data, node.name)
 
@@ -130,7 +102,7 @@ def _prepare_rabbitmq_config_files(template, rabbitmq_instances, credentials):
         join_cluster = rabbitmq_instances[0].name if i > 0 else None
         rendered_data = template.render(node=node,
                                         creds=credentials,
-                                        ca_path=REMOTE_CA_PATH,
+                                        ca_path=CA_PATH,
                                         join_cluster=join_cluster,
                                         rabbitmq_cluster=rabbitmq_cluster)
         _create_config_file(rendered_data, node.name)
@@ -141,7 +113,7 @@ def _prepare_manager_config_files(template,
                                   credentials,
                                   load_balancer_ip):
     logger.info('Preparing Manager config files')
-    license_path = join(REMOTE_CLUSTER_INSTALL_DIR, 'license.yaml')
+    license_path = join(CLUSTER_INSTALL_DIR, 'license.yaml')
     postgresql_cluster = _get_postgresql_cluster_members(
         instances_dict['postgresql'])
     rabbitmq_cluster = _get_rabbitmq_cluster_members(
@@ -149,7 +121,7 @@ def _prepare_manager_config_files(template,
     for node in instances_dict['manager']:
         rendered_data = template.render(node=node,
                                         creds=credentials,
-                                        ca_path=REMOTE_CA_PATH,
+                                        ca_path=CA_PATH,
                                         license_path=license_path,
                                         load_balancer_ip=load_balancer_ip,
                                         rabbitmq_cluster=rabbitmq_cluster,
@@ -158,13 +130,13 @@ def _prepare_manager_config_files(template,
 
 
 def _create_config_file(rendered_data, node_name):
-    config_path = join(LOCAL_CONFIG_DIR, '{0}_config.yaml'.format(node_name))
+    config_path = join(CONFIG_FILES_DIR, '{0}_config.yaml'.format(node_name))
     with open(config_path, 'w') as config_file:
         config_file.write(rendered_data)
 
 
 def _prepare_config_files(instances_dict, credentials, load_balancer_ip):
-    os.mkdir(join(LOCAL_CLUSTER_INSTALL_DIR, 'config_files'))
+    os.mkdir(join(CLUSTER_INSTALL_DIR, 'config_files'))
     templates_env = Environment(
         loader=FileSystemLoader(
             join(dirname(__file__), 'config_files_templates')))
@@ -186,22 +158,40 @@ def _prepare_config_files(instances_dict, credentials, load_balancer_ip):
         load_balancer_ip)
 
 
+def _install_cloudify_remotely(instance, rpm_download_link):
+    rpm_name = splitext(basename(rpm_download_link))[0]
+    try:
+        instance.run_command('rpm -qa | grep {0}'.format(rpm_name),
+                             hide_stdout=True)
+        logger.info('Cloudify RPM is already installed on %s',
+                    instance.name)
+    except ClusterInstallError:
+        # If cloudify is not installed, an error is raised
+        logger.info('Downloading Cloudify RPM on %s from %s',
+                    instance.name, rpm_download_link)
+        instance.run_command('curl -o {0} {1}'.format(
+            RPM_PATH, rpm_download_link))
+        logger.info('Installing Cloudify RPM on %s', instance.name)
+        instance.run_command(
+            'yum install -y {}'.format(RPM_PATH), use_sudo=True)
+
+
 def _install_instances(instances_dict, rpm_download_link):
     for instance_type in instances_dict:
         logger.info('installing %s instances', instance_type)
         for instance in instances_dict[instance_type]:
-            logger.info('Copying the %s directory to %s',
-                        LOCAL_CLUSTER_INSTALL_DIR, instance.name)
-            instance.put_dir(LOCAL_CLUSTER_INSTALL_DIR,
-                             REMOTE_CLUSTER_INSTALL_DIR,
-                             override=True)
-            logger.info('Installing Cloudify RPM on %s', instance.name)
-            instance.run_command('curl -o {0} {1}'.format(REMOTE_RPM_PATH,
-                                                          rpm_download_link))
-            instance.run_command(
-                'yum install -y {}'.format(REMOTE_RPM_PATH), use_sudo=True)
+            if instance.private_ip == current_host_ip():
+                logger.info('Running on %s, no need to install Cloudify again',
+                            instance.name)
+            else:
+                logger.info('Copying the %s directory to %s',
+                            CLUSTER_INSTALL_DIR, instance.name)
+                instance.put_dir(CLUSTER_INSTALL_DIR,
+                                 CLUSTER_INSTALL_DIR,
+                                 override=True)
+                _install_cloudify_remotely(instance, rpm_download_link)
 
-            config_path = join(REMOTE_CONFIG_DIR,
+            config_path = join(CONFIG_FILES_DIR,
                                '{}_config.yaml'.format(instance.name))
             instance.run_command(
                 'cp {0} /etc/cloudify/config.yaml'.format(config_path))
@@ -225,7 +215,7 @@ def _get_instances_dict(config):
     for node_name, node_dict in config.get('existing_vms').items():
         new_vm = CfyNode(node_dict.get('private_ip'),
                          node_dict.get('public_ip'),
-                         JUMP_HOST_SSH_KEY_PATH,
+                         config.get('key_file_path'),
                          username,
                          node_name)
         instances_dict[node_name.split('-')[0]].append(new_vm)
@@ -234,18 +224,16 @@ def _get_instances_dict(config):
 
 
 def _create_cluster_install_directory():
-    logger.info('Creating `{0}` directory'.format(TOP_DIR_NAME))
-    if exists(LOCAL_CLUSTER_INSTALL_DIR):
-        new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + TOP_DIR_NAME)
-        os.rename(LOCAL_CLUSTER_INSTALL_DIR, join(JUMP_HOST_DIR, new_dirname))
-        for dir_name in os.listdir(JUMP_HOST_DIR):  # Delete old dir
-            if (TOP_DIR_NAME in dir_name) and (dir_name < new_dirname):
-                shutil.rmtree(join(JUMP_HOST_DIR, dir_name))
+    logger.info('Creating `{0}` directory'.format(DIR_NAME))
+    if exists(CLUSTER_INSTALL_DIR):
+        new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + DIR_NAME)
+        os.rename(CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname))
+        for dir_name in os.listdir(TOP_DIR):  # Delete old dir
+            if (DIR_NAME in dir_name) and (dir_name < new_dirname):
+                shutil.rmtree(join(TOP_DIR, dir_name))
                 break  # There is only one
-    os.mkdir(LOCAL_CLUSTER_INSTALL_DIR)
 
-    copy(JUMP_HOST_LICENSE_PATH,
-         join(LOCAL_CLUSTER_INSTALL_DIR, 'license.yaml'))
+    os.mkdir(CLUSTER_INSTALL_DIR)
 
 
 def _random_credential_generator():
@@ -265,37 +253,109 @@ def _populate_credentials(credentials):
 
 def _handle_credentials(credentials):
     _populate_credentials(credentials)
-    with open(JUMP_HOST_CREDENTIALS_FILE, 'w') as credentials_file:
+    with open(CREDENTIALS_FILE_PATH, 'w') as credentials_file:
         yaml.dump(credentials, credentials_file)
 
     return credentials
 
 
-def _show_manager_ips(manager_nodes):
+def _log_managers_connection_strings(manager_nodes):
     managers_str = ''
     for manager in manager_nodes:
         managers_str += '{0}: {1}@{2}\n'.format(manager.name,
                                                 manager.username,
                                                 manager.public_ip)
     logger.info('In order to connect to one of the managers, use one of the '
-                'following IPs:\n%s', managers_str)
+                'following connection strings:\n%s', managers_str)
 
 
-def main():
-    config = get_dict_from_yaml(JUMP_HOST_CONFIG_PATH)
+def _print_successful_installation_message(start_time):
+    running_time = time.time() - start_time
+    m, s = divmod(running_time, 60)
+    logger.info('Successfully installed an Active-Active cluster in '
+                '{0} minutes and {1} seconds'.format(int(m), int(s)))
+
+
+def _install_cloudify_locally(rpm_download_link):
+    rpm_name = splitext(basename(rpm_download_link))[0]
+    if cloudify_is_installed(rpm_name):
+        logger.info('Cloudify RPM is already installed')
+    else:
+        logger.info('Downloading Cloudify RPM from %s', rpm_download_link)
+        run(['curl', '-o', RPM_PATH, rpm_download_link])
+        logger.info('Installing Cloudify RPM')
+        sudo(['yum', 'install', '-y', RPM_PATH])
+
+
+def generate_config(output_path):
+    output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
+    copy(join(dirname(__file__), 'cluster_config.yaml'), output_path)
+    logger.info('Created the cluster install configuration file in %s',
+                output_path)
+
+
+def install(config_path):
+    if not yum_is_present():
+        raise ClusterInstallError('Yum is not present.')
+
+    start_time = time.time()
+    config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
+    config = get_dict_from_yaml(config_path)
     load_balancer_ip = config.get('load_balancer_ip')
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))
     instances_dict = _get_instances_dict(config)
     _create_cluster_install_directory()
+    copy(config.get('cloudify_license_path'),
+         join(CLUSTER_INSTALL_DIR, 'license.yaml'))
 
-    logger.info('Downloading Cloudify Manager')
-    run(['curl', '-o', JUMP_HOST_RPM_PATH, rpm_download_link])
-    sudo(['yum', 'install', '-y', JUMP_HOST_RPM_PATH])
+    _install_cloudify_locally(rpm_download_link)
     _generate_certs(instances_dict)
     _prepare_config_files(instances_dict, credentials, load_balancer_ip)
     _install_instances(instances_dict, rpm_download_link)
-    _show_manager_ips(instances_dict['manager'])
+    _log_managers_connection_strings(instances_dict['manager'])
+    logger.info('The credentials file was saved to %s', CREDENTIALS_FILE_PATH)
+    _print_successful_installation_message(start_time)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Setting up an Active-Active Cloudify cluster')
+
+    subparsers = parser.add_subparsers(help='Cloudify cluster setup action',
+                                       dest='action')
+
+    generate_config_args = subparsers.add_parser(
+        'generate-config',
+        help='Generate the cluster install configuration file')
+
+    generate_config_args.add_argument(
+        '-o', '--output',
+        action='store',
+        help='The local path to save the cluster install configuration file '
+             'to. default: ./cluster_config.yaml')
+
+    install_args = subparsers.add_parser(
+        'install',
+        help='Install a Cloudify cluster based on the cluster install '
+             'configuration file.')
+
+    install_args.add_argument(
+        '--config-path',
+        action='store',
+        help='The completed cluster install configuration file. '
+             'default: ./cluster_config.yaml')
+
+    args = parser.parse_args()
+
+    if args.action == 'generate-config':
+        generate_config(args.output)
+
+    elif args.action == 'install':
+        install(args.config_path)
+
+    else:
+        raise RuntimeError('Invalid action specified in parser.')
 
 
 if __name__ == "__main__":

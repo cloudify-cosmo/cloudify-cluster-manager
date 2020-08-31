@@ -1,7 +1,3 @@
-# The jump host should be in the same network as the cluster.
-# The jump_host_ip should be reachable from the client that runs the cluster install.
-jump_host_ip: ''
-
 # Your private key local path to connect to all hosts
 key_file_path: ''
 
@@ -17,7 +13,8 @@ manager_rpm_download_link: 'http://cloudify-release-eu.s3.amazonaws.com/cloudify
 # If specified, all the VMs certificates will need to be specified as well
 ca_cert_path: ''
 
-# If using a load-balancer, please provide its IP
+# If using a load-balancer, please provide its IP.
+# This IP will be written the the config.yaml files.
 load_balancer_ip: ''
 
 # In case you are using a 3 nodes cluster, just fill in the `manager` items
@@ -41,6 +38,24 @@ existing_vms:
       cert_path: ''
       key_path: ''
 
+    postgresql-1:
+      private_ip: ''
+      public_ip: ''
+      cert_path: ''
+      key_path: ''
+
+    postgresql-2:
+      private_ip: ''
+      public_ip: ''
+      cert_path: ''
+      key_path: ''
+
+    postgresql-3:
+      private_ip: ''
+      public_ip: ''
+      cert_path: ''
+      key_path: ''
+
     rabbitmq-1:
       private_ip: ''
       public_ip: ''
@@ -59,36 +74,34 @@ existing_vms:
       cert_path: ''
       key_path: ''
 
-external_db_configuration:
-  host: '' # The external DB host name (or IP address)
-  ca_path: '' # The external DB CA certificate
-
-  # If your database is an Azure DBaaS instance, you must set 'server_username'
-  # so it includes the database name as a suffix. For example, if your database
-  # name is "mycfydb" and your username is "test", then "server_username"
-  # should be "mycfydb@test".
-  server_db_name: ''  # master db name
-  server_username: ''  # master username to login external database
-  server_password: ''  # password of master username to login external database
-
-  # The following apply if your database is an Azure DBaaS instance:
-  #
-  #   * "cloudify_username" must include the database name as a suffix. For example,
-  #     if your desired database username is "cloudify" and your database name is
-  #     "test", then "cloudify_username" should be "cloudify@test".
-  #
-  #   * "cloudify_username" must be different from "server_username".
-  cloudify_username: cloudify
-  cloudify_password: ''
 
 # If the credentials are not specified, random ones will be used and written to a dedicated file
 credentials:
-  rabbitmq_credentials:
+  manager:
+    admin_username: 'admin'
+    admin_password: ''
+
+  postgresql:
+    postgres_password: ''
+    cluster:
+      etcd:
+        cluster_token: ''
+        root_password: ''
+        patroni_password: ''
+      patroni:
+        rest_password: ''
+      postgres:
+        replicator_password: ''
+
+    db_monitoring:
+      username: ''
+      password: ''
+
+  rabbitmq:
     username: ''
     password: ''
-  manager_monitoring_credentials:
-    username: ''
-    password: ''
-  rabbitmq_monitoring_credentials:
+    erlang_cookie: ''
+
+  prometheus:
     username: ''
     password: ''
