@@ -3,8 +3,8 @@ manager:
   public_ip: {{ node.public_ip }}
 
 rabbitmq:
-  username: cloudify
-  password: c10udify
+  username: {{ creds.rabbitmq.username }}
+  password: {{ creds.rabbitmq.password }}
 
   cluster_members: {{ rabbitmq_cluster }}
 
@@ -18,12 +18,12 @@ rabbitmq:
   join_cluster: {{ join_cluster }}
   {% endif %}
 
-  erlang_cookie: 'securesharedtoken'
+  erlang_cookie: {{ creds.rabbitmq.erlang_cookie }}
 
 prometheus:
   credentials:
-    username: 'monitoringusername'
-    password: 'longyeteasytorememberstringasapassword'
+    username: {{ creds.prometheus.username }}
+    password: {{ creds.prometheus.password }}
 
   cert_path: {{ node.cert_path }}
   key_path: {{ node.key_path }}

@@ -10,23 +10,26 @@ postgresql_server:
   ssl_client_verification: true
   ssl_only_connections: true
 
-  postgres_password: 'somesecretvalue123!'
+  postgres_password: {{ creds.postgresql.postgres_password }}
   cluster:
     nodes: {{ postgresql_cluster }}
 
     etcd:
-      cluster_token: 'somesecretvalue123!'
-      root_password: 'somesecretvalue123!'
-      patroni_password: 'somesecretvalue123!'
+      cluster_token: {{ creds.postgresql.cluster.etcd.cluster_token }}
+      root_password: {{ creds.postgresql.cluster.etcd.root_password }}
+      patroni_password: {{ creds.postgresql.cluster.etcd.patroni_password }}
     patroni:
-      rest_password: 'somesecretvalue123!'
+      rest_password: {{ creds.postgresql.cluster.patroni.rest_password }}
     postgres:
-      replicator_password: 'somesecretvalue123!'
+      replicator_password: {{ creds.postgresql.cluster.postgres.replicator_password }}
+
+  db_monitoring: {{ creds.postgresql.db_monitoring }}
+
 
 prometheus:
   credentials:
-    username: 'monitoringusername'
-    password: 'longyeteasytorememberstringasapassword'
+    username: {{ creds.prometheus.username }}
+    password: {{ creds.prometheus.password }}
 
   cert_path: {{ node.cert_path }}
   key_path: {{ node.key_path }}

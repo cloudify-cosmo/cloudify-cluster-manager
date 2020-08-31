@@ -80,16 +80,31 @@ existing_vms:
 
 # If the credentials are not specified, random ones will be used and written to a dedicated file
 credentials:
-  rabbitmq_credentials:
+  manager:
+    admin_username: 'admin'
+    admin_password: ''
+
+  postgresql:
+    postgres_password: ''
+    cluster:
+      etcd:
+        cluster_token: ''
+        root_password: ''
+        patroni_password: ''
+      patroni:
+        rest_password: ''
+      postgres:
+        replicator_password: ''
+
+    db_monitoring:
+      username: ''
+      password: ''
+
+  rabbitmq:
     username: ''
     password: ''
-  postgresql_db_password: ''
-  manager_monitoring_credentials:
-    username: ''
-    password: ''
-  postgrdesql_monitoring_credentials:
-    username: ''
-    password: ''
-  rabbitmq_monitoring_credentials:
+    erlang_cookie: ''
+
+  prometheus:
     username: ''
     password: ''

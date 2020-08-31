@@ -4,13 +4,14 @@ manager:
 
   security:
     ssl_enabled: true
-    admin_password: admin
+    admin_username: {{ creds.manager.admin_username }}
+    admin_password: {{ creds.manager.admin_password }}
 
   cloudify_license_path: {{ license_path }}
 
 rabbitmq:
-  username: cloudify
-  password: c10udify
+  username: {{ creds.rabbitmq.username }}
+  password: {{ creds.rabbitmq.password }}
 
   cluster_members: {{ rabbitmq_cluster }}
 
@@ -20,13 +21,13 @@ postgresql_server:
   ssl_enabled: true
   ca_path: {{ ca_path }}
 
-  postgres_password: 'somesecretvalue123!'
+  postgres_password: {{ creds.postgresql.postgres_password }}
   cluster:
     nodes: {{ postgresql_cluster }}
 
 postgresql_client:
   ssl_enabled: true
-  server_password: 'somesecretvalue123!'
+  server_password: {{ creds.postgresql.postgres_password }}
   ssl_client_verification: true
 
 validations:
@@ -49,8 +50,8 @@ ssl_inputs:
 
 prometheus:
   credentials:
-    username: 'monitoringusername'
-    password: 'longyeteasytorememberstringasapassword'
+    username: {{ creds.prometheus.username }}
+    password: {{ creds.prometheus.password }}
 
   cert_path: {{ node.cert_path }}
   key_path: {{ node.key_path }}

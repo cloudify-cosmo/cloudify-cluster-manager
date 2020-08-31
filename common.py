@@ -17,6 +17,7 @@ OLD_JUMP_HOST_DIR = join('/tmp', DIR_NAME+'_old')
 JUMP_HOST_SSH_KEY_PATH = join(JUMP_HOST_DIR, 'jump_host_key.pem')
 JUMP_HOST_CONFIG_PATH = join(JUMP_HOST_DIR, 'config_cluster.yaml')
 JUMP_HOST_LICENSE_PATH = join(JUMP_HOST_DIR, 'cloudify_license.yaml')
+JUMP_HOST_CREDENTIALS_FILE = join(JUMP_HOST_DIR, 'secret_credentials.yaml')
 
 
 def init_logger():
