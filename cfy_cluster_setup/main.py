@@ -193,13 +193,10 @@ def _install_instances(instances_dict, rpm_download_link):
 
             config_path = join(CONFIG_FILES_DIR,
                                '{}_config.yaml'.format(instance.name))
-            instance.run_command(
-                'cp {0} /etc/cloudify/config.yaml'.format(config_path))
 
             logger.info('Installing %s', instance.name)
             instance.run_command(
-                'cfy_manager install'.format(
-                    instance.private_ip, instance.public_ip))
+                'cfy_manager install -c {0}'.format(config_path))
 
 
 def _sort_instances_dict(instances_dict):
