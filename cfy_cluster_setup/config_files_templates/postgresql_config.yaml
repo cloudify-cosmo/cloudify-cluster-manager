@@ -1,0 +1,43 @@
+manager:
+  private_ip: {{ node.private_ip }}
+  public_ip: {{ node.public_ip }}
+
+postgresql_server:
+  cert_path: {{ node.cert_path }}
+  key_path: {{ node.key_path }}
+  ca_path: {{ ca_path }}
+
+  ssl_client_verification: true
+  ssl_only_connections: true
+
+  postgres_password: {{ creds.postgresql.postgres_password }}
+  cluster:
+    nodes: {{ postgresql_cluster }}
+
+    etcd:
+      cluster_token: {{ creds.postgresql.cluster.etcd.cluster_token }}
+      root_password: {{ creds.postgresql.cluster.etcd.root_password }}
+      patroni_password: {{ creds.postgresql.cluster.etcd.patroni_password }}
+    patroni:
+      rest_password: {{ creds.postgresql.cluster.patroni.rest_password }}
+    postgres:
+      replicator_password: {{ creds.postgresql.cluster.postgres.replicator_password }}
+
+  db_monitoring: {{ creds.postgresql.db_monitoring }}
+
+
+prometheus:
+  credentials:
+    username: {{ creds.prometheus.username }}
+    password: {{ creds.prometheus.password }}
+
+  cert_path: {{ node.cert_path }}
+  key_path: {{ node.key_path }}
+  ca_path: {{ ca_path }}
+
+validations:
+  minimum_required_total_physical_memory_in_mb: 1024
+
+services_to_install:
+  - database_service
+  - monitoring_service
