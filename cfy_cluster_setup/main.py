@@ -10,9 +10,10 @@ from os.path import basename, dirname, exists, expanduser, join, splitext
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from .utils import (cloudify_is_installed, ClusterInstallError, copy,
+from .utils import (check_cert_key_match, check_san, check_signed_by,
+                    cloudify_is_installed, ClusterInstallError, copy,
                     current_host_ip, get_dict_from_yaml, logger, move, run,
-                    sudo, VM, yum_is_present)
+                    sudo, ValidationError, VM, yum_is_present)
 
 
 CERTS_DIR_NAME = 'certs'
@@ -39,10 +40,12 @@ class CfyNode(VM):
                  public_ip,
                  key_file_path,
                  username,
-                 node_name):
+                 node_name,
+                 hostname):
         super(CfyNode, self).__init__(private_ip, public_ip,
                                       key_file_path, username)
         self.name = node_name
+        self.hostname = hostname
         self.cert_path = join(CERTS_DIR, self.name + '_cert.pem')
         self.key_path = join(CERTS_DIR, self.name + '_key.pem')
 
@@ -191,12 +194,13 @@ def _install_instances(instances_dict, rpm_download_link):
                                  override=True)
                 _install_cloudify_remotely(instance, rpm_download_link)
 
-            config_path = join(CONFIG_FILES_DIR,
-                               '{}_config.yaml'.format(instance.name))
+            instance_config = '{}_config.yaml'.format(instance.name)
+            dest_instance_config = join('/etc', 'cloudify', instance_config)
+            copy(join(CONFIG_FILES_DIR, instance_config), dest_instance_config)
 
             logger.info('Installing %s', instance.name)
             instance.run_command(
-                'cfy_manager install -c {0}'.format(config_path))
+                'cfy_manager install -c {0}'.format(dest_instance_config))
 
 
 def _sort_instances_dict(instances_dict):
@@ -209,12 +213,15 @@ def _get_instances_dict(config):
     instances_dict = OrderedDict(
         (('postgresql', []), ('rabbitmq', []), ('manager', [])))
     username = config.get('machine_username')
+    logger.info('Validating connection to instances')
     for node_name, node_dict in config.get('existing_vms').items():
         new_vm = CfyNode(node_dict.get('private_ip'),
                          node_dict.get('public_ip'),
                          config.get('key_file_path'),
                          username,
-                         node_name)
+                         node_name,
+                         node_dict.get('hostname'))
+        new_vm.test_connection()
         instances_dict[node_name.split('-')[0]].append(new_vm)
     _sort_instances_dict(instances_dict)
     return instances_dict
@@ -291,6 +298,49 @@ def generate_config(output_path):
                 output_path)
 
 
+def _check_path(config, key):
+    path = config.get(key)
+    if (not path) or (not exists(expanduser(path))):
+        raise ValidationError('Path {0} does not exist'.format(path))
+
+    config[key] = expanduser(path)
+
+
+def _check_value_supplied(config, key):
+    if not config.get(key):
+        raise ValidationError('{0} is not specified'.format(key))
+
+
+def _check_existing_vms(config):
+    ca_cert_path = config.get('ca_cert_path')
+    if ca_cert_path:
+        _check_path(config, 'ca_cert_path')
+
+    existing_vms_list = config.get('existing_vms')
+    for vm_name, vm_dict in existing_vms_list.items():
+        logger.info('Validating %s', vm_name)
+        if (not vm_dict['private_ip']) or (not vm_dict['public_ip']):
+            raise ValidationError('private_ip and public_ip should be '
+                                  'specified for all instances')
+        if ca_cert_path:
+            cert_path = vm_dict.get('cert_path')
+            key_path = vm_dict.get('key_path')
+            if (not cert_path) or (not key_path):
+                raise ValidationError('cert_path and key_path should be '
+                                      'specified for all instances')
+            check_cert_key_match(cert_path, key_path)
+            check_signed_by(ca_cert_path, cert_path)
+            check_san(vm_name, vm_dict, cert_path)
+
+
+def _validate_config(config):
+    _check_path(config, 'key_file_path')
+    _check_value_supplied(config, 'machine_username')
+    _check_path(config, 'cloudify_license_path')
+    _check_value_supplied(config, 'manager_rpm_download_link')
+    _check_existing_vms(config)
+
+
 def install(config_path):
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
@@ -298,6 +348,7 @@ def install(config_path):
     start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
     config = get_dict_from_yaml(config_path)
+    _validate_config(config)
     load_balancer_ip = config.get('load_balancer_ip')
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))

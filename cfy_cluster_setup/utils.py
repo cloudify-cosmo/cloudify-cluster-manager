@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import shlex
 import socket
@@ -34,6 +35,10 @@ class ProcessExecutionError(ClusterInstallError):
     def __init__(self, message, return_code=None):
         self.return_code = return_code
         super(ProcessExecutionError, self).__init__(message)
+
+
+class ValidationError(ClusterInstallError):
+    pass
 
 
 def run(command, retries=0, ignore_failures=False):
@@ -100,7 +105,16 @@ class VM(object):
         connection = Connection(
             host=self.private_ip, user=self.username, port=22,
             connect_kwargs={'key_filename': self.key_file_path})
-        try:  # Connection is lazy, so **we** need to check it can be opened
+        self.test_connection(connection)
+
+        return connection
+
+    def test_connection(self, connection=None):
+        """ Connection is lazy, so **we** need to check it can be opened."""
+        connection = connection or Connection(
+            host=self.private_ip, user=self.username, port=22,
+            connect_kwargs={'key_filename': self.key_file_path})
+        try:
             connection.open()
         except (socket_error, AuthenticationException) as exc:
             raise ClusterInstallError(
@@ -110,8 +124,6 @@ class VM(object):
                     key=self.key_file_path, exc=exc))
         finally:
             connection.close()
-
-        return connection
 
     def run_command(self, command, hide_stdout=False, use_sudo=False):
         hide = 'both' if hide_stdout else 'stderr'
@@ -176,7 +188,7 @@ def get_dict_from_yaml(yaml_path):
 
 def cloudify_is_installed(cloudify_rpm):
     proc = run(['rpm', '-qa'])
-    if cloudify_rpm in proc.aggr_stdout:
+    if cloudify_rpm in proc.aggr_stdout.strip():
         return True
     return False
 
@@ -191,3 +203,64 @@ def yum_is_present():
 
 def current_host_ip():
     return socket.gethostbyname(socket.getfqdn())
+
+
+def _check_ssl_file(filename, kind='Key'):
+    """Does the cert/key file valid?"""
+    if kind == 'Key':
+        check_command = ['openssl', 'rsa', '-in', filename, '-check', '-noout']
+    elif kind == 'Cert':
+        check_command = ['openssl', 'x509', '-in', filename, '-noout']
+    else:
+        raise ValueError('Unknown kind: {0}'.format(kind))
+    proc = run(check_command, ignore_failures=True)
+    if proc.returncode != 0:
+        raise ValidationError('{0} file {1} is invalid'.format(kind, filename))
+
+
+def check_cert_key_match(cert_filename, key_filename):
+    """Check the cert_filename matches the key_filename"""
+    _check_ssl_file(key_filename, kind='Key')
+    _check_ssl_file(cert_filename, kind='Cert')
+    key_modulus_command = [
+        'openssl', 'rsa', '-noout', '-modulus', '-in', key_filename]
+    cert_modulus_command = [
+        'openssl', 'x509', '-noout', '-modulus', '-in', cert_filename]
+
+    key_modulus = run(key_modulus_command).aggr_stdout.strip()
+    cert_modulus = run(cert_modulus_command).aggr_stdout.strip()
+    if cert_modulus != key_modulus:
+        raise ValidationError(
+            'Key {key_path} does not match the cert {cert_path}'.format(
+                key_path=key_filename, cert_path=cert_filename))
+
+
+def check_signed_by(ca_filename, cert_filename):
+    """Check the cert_filename is signed by the ca_filename"""
+    ca_check_command = [
+        'openssl', 'verify', '-CAfile', ca_filename, cert_filename]
+    try:
+        run(ca_check_command)
+    except ProcessExecutionError:
+        raise ValidationError(
+            'Provided certificate {cert} was not signed by provided '
+            'CA {ca}'.format(cert=cert_filename, ca=ca_filename))
+
+
+def check_san(vm_name, vm_dict, cert_path):
+    """Check the vm is specified in the certificate's SAN"""
+    hostname = vm_dict.get('hostname')
+    get_cert_command = ['openssl', 'x509', '-noout', '-text', '-in', cert_path]
+    cert = run(get_cert_command).aggr_stdout.strip()
+    ip_addresses = re.findall(r'\bIP Address:(\S+)\b', cert)
+    dns_addresses = re.findall(r'\bDNS:(\S+)\b', cert)
+    for ip in vm_dict['private_ip'], vm_dict['public_ip']:
+        if (ip in ip_addresses) and (ip in dns_addresses):
+            return
+    if hostname and hostname in dns_addresses:
+        return
+
+    raise ValidationError(
+        'The certificate {0} does not match the instance {1}. '
+        'Allowd IP addresses: {2}, Allowed DNS: {3}'.format(
+            cert_path, vm_name, ip_addresses, dns_addresses))
