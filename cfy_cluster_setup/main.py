@@ -1,21 +1,27 @@
 import os
+import sys
 import time
 import shutil
 import string
 import random
 import argparse
+from traceback import format_exception
 from collections import OrderedDict
-from os.path import basename, dirname, exists, expanduser, join, splitext
+from os.path import (basename, dirname, exists, expanduser, isdir, join,
+                     splitext)
 
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
+from .logger import get_cfy_cluster_setup_logger, setup_console_logger
 from .utils import (check_cert_key_match, check_cert_path, check_san,
                     check_signed_by, cloudify_is_installed,
                     ClusterInstallError, copy, current_host_ip,
-                    raise_errors_list, get_dict_from_yaml, logger, move, run,
+                    raise_errors_list, get_dict_from_yaml, move, run,
                     sudo, VM, yum_is_present)
 
+
+logger = get_cfy_cluster_setup_logger()
 
 CERTS_DIR_NAME = 'certs'
 CFY_CERTS_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
@@ -31,8 +37,9 @@ CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 CA_PATH = join(CERTS_DIR, 'ca.pem')
 
+CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
-CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), 'cfy_cluster_config.yaml')
+CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
 
 class CfyNode(VM):
@@ -49,6 +56,18 @@ class CfyNode(VM):
         self.hostname = hostname
         self.cert_path = join(CERTS_DIR, self.name + '_cert.pem')
         self.key_path = join(CERTS_DIR, self.name + '_key.pem')
+
+
+def _exception_handler(type_, value, traceback):
+    error = type_.__name__
+    if str(value):
+        error = '{0}: {1}'.format(error, value)
+    logger.error(error)
+    debug_traceback = ''.join(format_exception(type_, value, traceback))
+    logger.debug(debug_traceback)
+
+
+sys.excepthook = _exception_handler
 
 
 def _generate_instance_certificate(instance):
@@ -180,7 +199,7 @@ def _install_cloudify_remotely(instance, rpm_download_link):
             'yum install -y {}'.format(RPM_PATH), use_sudo=True)
 
 
-def _install_instances(instances_dict, rpm_download_link):
+def _install_instances(instances_dict, rpm_download_link, verbose):
     for instance_type in instances_dict:
         logger.info('installing %s instances', instance_type)
         for instance in instances_dict[instance_type]:
@@ -197,11 +216,15 @@ def _install_instances(instances_dict, rpm_download_link):
 
             instance_config = '{}_config.yaml'.format(instance.name)
             dest_instance_config = join('/etc', 'cloudify', instance_config)
-            copy(join(CONFIG_FILES_DIR, instance_config), dest_instance_config)
+            instance.run_command('cp {0} {1}'.format(
+                join(CONFIG_FILES_DIR, instance_config), dest_instance_config),
+                use_sudo=True)
 
             logger.info('Installing %s', instance.name)
-            instance.run_command(
-                'cfy_manager install -c {0}'.format(dest_instance_config))
+            install_cmd = 'cfy_manager install -c {config} {verbose}'.format(
+                config=dest_instance_config, verbose='-v' if verbose else '')
+
+            instance.run_command(install_cmd)
 
 
 def _sort_instances_dict(instances_dict):
@@ -223,6 +246,7 @@ def _get_instances_dict(config):
                          username,
                          node_name,
                          node_dict.get('hostname'))
+        logger.debug('Testing connection to %s', new_vm.private_ip)
         new_vm.test_connection()
         instances_dict[node_name.split('-')[0]].append(new_vm)
     _sort_instances_dict(instances_dict)
@@ -278,7 +302,7 @@ def _log_managers_connection_strings(manager_nodes):
 def _print_successful_installation_message(start_time):
     running_time = time.time() - start_time
     m, s = divmod(running_time, 60)
-    logger.info('Successfully installed an Active-Active cluster in '
+    logger.info('Successfully installed a Cloudify cluster in '
                 '{0} minutes and {1} seconds'.format(int(m), int(s)))
 
 
@@ -291,13 +315,6 @@ def _install_cloudify_locally(rpm_download_link):
         run(['curl', '-o', RPM_PATH, rpm_download_link])
         logger.info('Installing Cloudify RPM')
         sudo(['yum', 'install', '-y', RPM_PATH])
-
-
-def generate_config(output_path):
-    output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
-    copy(join(dirname(__file__), 'cluster_config.yaml'), output_path)
-    logger.info('Created the cluster install configuration file in %s',
-                output_path)
 
 
 def _check_path(dictionary, key, errors_list, vm_name=None):
@@ -358,10 +375,22 @@ def _validate_config(config):
         raise_errors_list(errors_list)
 
 
-def install(config_path):
+def generate_config(output_path, verbose):
+    setup_console_logger(verbose)
+    output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
+    if isdir(output_path):
+        output_path = join(output_path, CLUSTER_CONFIG_FILE_NAME)
+    copy(join(dirname(__file__), CLUSTER_CONFIG_FILE_NAME), output_path)
+    logger.info('Created the cluster install configuration file in %s',
+                output_path)
+
+
+def install(config_path, verbose):
+    setup_console_logger(verbose)
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
+    logger.info('Installing a Cloudify cluster')
     start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
     config = get_dict_from_yaml(config_path)
@@ -377,15 +406,24 @@ def install(config_path):
     _install_cloudify_locally(rpm_download_link)
     _generate_certs(instances_dict)
     _prepare_config_files(instances_dict, credentials, load_balancer_ip)
-    _install_instances(instances_dict, rpm_download_link)
+    _install_instances(instances_dict, rpm_download_link, verbose)
     _log_managers_connection_strings(instances_dict['manager'])
     logger.info('The credentials file was saved to %s', CREDENTIALS_FILE_PATH)
     _print_successful_installation_message(start_time)
 
 
+def add_verbose_arg(parser):
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        default=False,
+        help='Show verbose output.'
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Setting up an Active-Active Cloudify cluster')
+        description='Setting up a Cloudify cluster')
 
     subparsers = parser.add_subparsers(help='Cloudify cluster setup action',
                                        dest='action')
@@ -398,7 +436,9 @@ def main():
         '-o', '--output',
         action='store',
         help='The local path to save the cluster install configuration file '
-             'to. default: ./cluster_config.yaml')
+             'to. default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
+
+    add_verbose_arg(generate_config_args)
 
     install_args = subparsers.add_parser(
         'install',
@@ -409,15 +449,17 @@ def main():
         '--config-path',
         action='store',
         help='The completed cluster install configuration file. '
-             'default: ./cluster_config.yaml')
+             'default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
+
+    add_verbose_arg(install_args)
 
     args = parser.parse_args()
 
     if args.action == 'generate-config':
-        generate_config(args.output)
+        generate_config(args.output, args.verbose)
 
     elif args.action == 'install':
-        install(args.config_path)
+        install(args.config_path, args.verbose)
 
     else:
         raise RuntimeError('Invalid action specified in parser.')

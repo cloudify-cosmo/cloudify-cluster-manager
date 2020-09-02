@@ -1,9 +1,7 @@
 import os
 import re
-import sys
 import shlex
 import socket
-import logging
 import subprocess
 from os.path import dirname, exists, expanduser, isdir, isfile, join
 from socket import error as socket_error
@@ -12,19 +10,9 @@ import yaml
 from fabric import Connection
 from paramiko import AuthenticationException
 
+from .logger import get_cfy_cluster_setup_logger
 
-def init_logger():
-    log = logging.getLogger('MAIN')
-    log.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-    return log
-
-
-logger = init_logger()
+logger = get_cfy_cluster_setup_logger()
 
 
 class ClusterInstallError(Exception):
@@ -133,10 +121,13 @@ class VM(object):
                       if use_sudo else
                       connection.run(command, warn=True, hide=hide))
             if result.failed:
+                if hide == 'both':  # No logs are shown
+                    raise ClusterInstallError(
+                        'The command `{0}` on host {1} failed with the '
+                        'error {2}'.format(command, self.private_ip,
+                                           result.stderr))
                 raise ClusterInstallError(
-                    'The command `{0}` on host {1} failed with the '
-                    'error {2}'.format(command, self.private_ip,
-                                       result.stderr.encode('utf-8')))
+                    'Error on host {0}'.format(self.private_ip))
             return result.stdout
 
     def put_file(self, local_path, remote_path):
