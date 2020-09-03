@@ -22,57 +22,66 @@ load_balancer_ip: ''
 existing_vms:
     manager-1:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     manager-2:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     manager-3:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     postgresql-1:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     postgresql-2:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     postgresql-3:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     rabbitmq-1:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     rabbitmq-2:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     rabbitmq-3:
       private_ip: ''
-      public_ip: ''
-      cert_path: ''
-      key_path: ''
+      public_ip: ''  # If not specified, will default to the private-ip
+      hostname: ''   # As specified in the certificate (if specified). Optional
+      cert_path: ''  # Need to be supplied if ca_cert_path was supplied
+      key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
 
 # If the credentials are not specified, random ones will be used and written to a dedicated file

@@ -1,6 +1,9 @@
 manager:
   private_ip: {{ node.private_ip }}
   public_ip: {{ node.public_ip }}
+  {% if node.hostname %}
+  hostname: {{ node.hostname }}
+  {% endif %}
 
   security:
     ssl_enabled: true

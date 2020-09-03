@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import shlex
 import socket
@@ -34,6 +35,10 @@ class ProcessExecutionError(ClusterInstallError):
     def __init__(self, message, return_code=None):
         self.return_code = return_code
         super(ProcessExecutionError, self).__init__(message)
+
+
+class ValidationError(ClusterInstallError):
+    pass
 
 
 def run(command, retries=0, ignore_failures=False):
@@ -100,7 +105,16 @@ class VM(object):
         connection = Connection(
             host=self.private_ip, user=self.username, port=22,
             connect_kwargs={'key_filename': self.key_file_path})
-        try:  # Connection is lazy, so **we** need to check it can be opened
+        self.test_connection(connection)
+
+        return connection
+
+    def test_connection(self, connection=None):
+        """ Connection is lazy, so **we** need to check it can be opened."""
+        connection = connection or Connection(
+            host=self.private_ip, user=self.username, port=22,
+            connect_kwargs={'key_filename': self.key_file_path})
+        try:
             connection.open()
         except (socket_error, AuthenticationException) as exc:
             raise ClusterInstallError(
@@ -110,8 +124,6 @@ class VM(object):
                     key=self.key_file_path, exc=exc))
         finally:
             connection.close()
-
-        return connection
 
     def run_command(self, command, hide_stdout=False, use_sudo=False):
         hide = 'both' if hide_stdout else 'stderr'
@@ -176,7 +188,7 @@ def get_dict_from_yaml(yaml_path):
 
 def cloudify_is_installed(cloudify_rpm):
     proc = run(['rpm', '-qa'])
-    if cloudify_rpm in proc.aggr_stdout:
+    if cloudify_rpm in proc.aggr_stdout.strip():
         return True
     return False
 
@@ -191,3 +203,88 @@ def yum_is_present():
 
 def current_host_ip():
     return socket.gethostbyname(socket.getfqdn())
+
+
+def openssl_command(file_name, file_format='x509', extra_flags_list=None):
+    command = ['openssl', file_format, '-in', file_name, '-noout']
+    if extra_flags_list:
+        command.extend(extra_flags_list)
+    return command
+
+
+def check_key_path(key_file_name, errors_list):
+    proc = run(openssl_command(key_file_name, 'rsa', ['-check']),
+               ignore_failures=True)
+    if proc.returncode != 0:
+        errors_list.append('The key file {0} is invalid'.format(key_file_name))
+        return False
+
+    return True
+
+
+def check_cert_path(cert_file_name, errors_list):
+    proc = run(openssl_command(cert_file_name), ignore_failures=True)
+    if proc.returncode != 0:
+        errors_list.append('The certificate file {0} is '
+                           'invalid'.format(cert_file_name))
+        return False
+
+    return True
+
+
+def check_cert_key_match(cert_filename, key_filename, errors_list):
+    """Check the cert_filename matches the key_filename"""
+    key_file_valid = check_key_path(key_filename, errors_list)
+    if key_file_valid:
+        modulus = ['-modulus']
+        key_modulus = run(openssl_command(key_filename, 'rsa', modulus))
+        cert_modulus = run(openssl_command(cert_filename, 'x509', modulus))
+
+        if cert_modulus.aggr_stdout.strip() != key_modulus.aggr_stdout.strip():
+            errors_list.append(
+                'Provided Key {key_path} does not match the provided '
+                'certificate {cert_path}'.format(key_path=key_filename,
+                                                 cert_path=cert_filename))
+            return False
+        return True
+
+    return False
+
+
+def check_signed_by(ca_filename, cert_filename, errors_list):
+    """Check the cert_filename is signed by the ca_filename"""
+    ca_check_command = [
+        'openssl', 'verify', '-CAfile', ca_filename, cert_filename]
+    try:
+        run(ca_check_command)
+    except ProcessExecutionError:
+        errors_list.append(
+            'Provided certificate {cert} was not signed by provided '
+            'CA {ca}'.format(cert=cert_filename, ca=ca_filename))
+
+
+def check_san(vm_name, vm_dict, cert_path, errors_list):
+    """Check the vm is specified in the certificate's SAN"""
+    hostname = vm_dict.get('hostname')
+    get_cert_command = openssl_command(cert_path, 'x509', ['-text'])
+    cert = run(get_cert_command).aggr_stdout.strip()
+    ip_addresses = re.findall(r'\bIP Address:(\S+)\b', cert)
+    dns_addresses = re.findall(r'\bDNS:(\S+)\b', cert)
+    for ip in vm_dict['private_ip'], vm_dict['public_ip']:
+        if (ip in ip_addresses) and (ip in dns_addresses):
+            return
+    if hostname and hostname in dns_addresses:
+        return
+
+    suffix = ' Allowed IP addresses: {0}, Allowed DNS: {1}'.format(
+        ip_addresses, dns_addresses) if (ip_addresses or dns_addresses) else ''
+    errors_list.append(
+        'The certificate {0} does not match the instance {1}.{2}'.format(
+            cert_path, vm_name, suffix))
+
+
+def raise_errors_list(errors_list):
+    err_str = 'Errors:\n'
+    err_lst = '\n'.join(' [{0}] {1}'.format(i+1, err) for i, err
+                        in enumerate(errors_list))
+    raise ValidationError(err_str + err_lst)
