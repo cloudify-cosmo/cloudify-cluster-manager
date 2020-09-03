@@ -205,52 +205,68 @@ def current_host_ip():
     return socket.gethostbyname(socket.getfqdn())
 
 
-def _check_ssl_file(filename, kind='Key'):
-    """Does the cert/key file valid?"""
-    if kind == 'Key':
-        check_command = ['openssl', 'rsa', '-in', filename, '-check', '-noout']
-    elif kind == 'Cert':
-        check_command = ['openssl', 'x509', '-in', filename, '-noout']
-    else:
-        raise ValueError('Unknown kind: {0}'.format(kind))
-    proc = run(check_command, ignore_failures=True)
+def openssl_command(file_name, file_format='x509', extra_flags_list=None):
+    command = ['openssl', file_format, '-in', file_name, '-noout']
+    if extra_flags_list:
+        command.extend(extra_flags_list)
+    return command
+
+
+def check_key_path(key_file_name, errors_list):
+    proc = run(openssl_command(key_file_name, 'rsa', ['-check']),
+               ignore_failures=True)
     if proc.returncode != 0:
-        raise ValidationError('{0} file {1} is invalid'.format(kind, filename))
+        errors_list.append('The key file {0} is invalid'.format(key_file_name))
+        return False
+
+    return True
 
 
-def check_cert_key_match(cert_filename, key_filename):
+def check_cert_path(cert_file_name, errors_list):
+    proc = run(openssl_command(cert_file_name), ignore_failures=True)
+    if proc.returncode != 0:
+        errors_list.append('The certificate file {0} is '
+                           'invalid'.format(cert_file_name))
+        return False
+
+    return True
+
+
+def check_cert_key_match(cert_filename, key_filename, errors_list):
     """Check the cert_filename matches the key_filename"""
-    _check_ssl_file(key_filename, kind='Key')
-    _check_ssl_file(cert_filename, kind='Cert')
-    key_modulus_command = [
-        'openssl', 'rsa', '-noout', '-modulus', '-in', key_filename]
-    cert_modulus_command = [
-        'openssl', 'x509', '-noout', '-modulus', '-in', cert_filename]
+    key_file_valid = check_key_path(key_filename, errors_list)
+    if key_file_valid:
+        modulus = ['-modulus']
+        key_modulus = run(openssl_command(key_filename, 'rsa', modulus))
+        cert_modulus = run(openssl_command(cert_filename, 'x509', modulus))
 
-    key_modulus = run(key_modulus_command).aggr_stdout.strip()
-    cert_modulus = run(cert_modulus_command).aggr_stdout.strip()
-    if cert_modulus != key_modulus:
-        raise ValidationError(
-            'Key {key_path} does not match the cert {cert_path}'.format(
-                key_path=key_filename, cert_path=cert_filename))
+        if cert_modulus.aggr_stdout.strip() != key_modulus.aggr_stdout.strip():
+            errors_list.append(
+                'Provided Key {key_path} does not match the provided '
+                'certificate {cert_path}'.format(key_path=key_filename,
+                                                 cert_path=cert_filename))
+            return False
+        return True
+
+    return False
 
 
-def check_signed_by(ca_filename, cert_filename):
+def check_signed_by(ca_filename, cert_filename, errors_list):
     """Check the cert_filename is signed by the ca_filename"""
     ca_check_command = [
         'openssl', 'verify', '-CAfile', ca_filename, cert_filename]
     try:
         run(ca_check_command)
     except ProcessExecutionError:
-        raise ValidationError(
+        errors_list.append(
             'Provided certificate {cert} was not signed by provided '
             'CA {ca}'.format(cert=cert_filename, ca=ca_filename))
 
 
-def check_san(vm_name, vm_dict, cert_path):
+def check_san(vm_name, vm_dict, cert_path, errors_list):
     """Check the vm is specified in the certificate's SAN"""
     hostname = vm_dict.get('hostname')
-    get_cert_command = ['openssl', 'x509', '-noout', '-text', '-in', cert_path]
+    get_cert_command = openssl_command(cert_path, 'x509', ['-text'])
     cert = run(get_cert_command).aggr_stdout.strip()
     ip_addresses = re.findall(r'\bIP Address:(\S+)\b', cert)
     dns_addresses = re.findall(r'\bDNS:(\S+)\b', cert)
@@ -260,7 +276,15 @@ def check_san(vm_name, vm_dict, cert_path):
     if hostname and hostname in dns_addresses:
         return
 
-    raise ValidationError(
-        'The certificate {0} does not match the instance {1}. '
-        'Allowd IP addresses: {2}, Allowed DNS: {3}'.format(
-            cert_path, vm_name, ip_addresses, dns_addresses))
+    suffix = ' Allowed IP addresses: {0}, Allowed DNS: {1}'.format(
+        ip_addresses, dns_addresses) if (ip_addresses or dns_addresses) else ''
+    errors_list.append(
+        'The certificate {0} does not match the instance {1}.{2}'.format(
+            cert_path, vm_name, suffix))
+
+
+def raise_errors_list(errors_list):
+    err_str = 'Errors:\n'
+    err_lst = '\n'.join(' [{0}] {1}'.format(i+1, err) for i, err
+                        in enumerate(errors_list))
+    raise ValidationError(err_str + err_lst)

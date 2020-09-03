@@ -10,10 +10,11 @@ from os.path import basename, dirname, exists, expanduser, join, splitext
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from .utils import (check_cert_key_match, check_san, check_signed_by,
-                    cloudify_is_installed, ClusterInstallError, copy,
-                    current_host_ip, get_dict_from_yaml, logger, move, run,
-                    sudo, ValidationError, VM, yum_is_present)
+from .utils import (check_cert_key_match, check_cert_path, check_san,
+                    check_signed_by, cloudify_is_installed,
+                    ClusterInstallError, copy, current_host_ip,
+                    raise_errors_list, get_dict_from_yaml, logger, move, run,
+                    sudo, VM, yum_is_present)
 
 
 CERTS_DIR_NAME = 'certs'
@@ -215,8 +216,9 @@ def _get_instances_dict(config):
     username = config.get('machine_username')
     logger.info('Validating connection to instances')
     for node_name, node_dict in config.get('existing_vms').items():
+        public_ip = node_dict.get('public_ip') or node_dict.get('private_ip')
         new_vm = CfyNode(node_dict.get('private_ip'),
-                         node_dict.get('public_ip'),
+                         public_ip,
                          config.get('key_file_path'),
                          username,
                          node_name,
@@ -298,47 +300,62 @@ def generate_config(output_path):
                 output_path)
 
 
-def _check_path(config, key):
-    path = config.get(key)
-    if (not path) or (not exists(expanduser(path))):
-        raise ValidationError('Path {0} does not exist'.format(path))
+def _check_path(dictionary, key, errors_list, vm_name=None):
+    if _check_value_provided(dictionary, key, errors_list, vm_name):
+        expanded_path = expanduser(dictionary.get(key))
+        if not exists(expanded_path):
+            suffix = ' for instance {0}'.format(vm_name) if vm_name else ''
+            errors_list.append('Path {0} for key {1} does not '
+                               'exist{2}'.format(expanded_path, key, suffix))
+            return False
 
-    config[key] = expanduser(path)
+        dictionary[key] = expanded_path
+        return True
+
+    return False
 
 
-def _check_value_supplied(config, key):
-    if not config.get(key):
-        raise ValidationError('{0} is not specified'.format(key))
+def _check_value_provided(dictionary, key, errors_list, vm_name=None):
+    if not dictionary.get(key):
+        suffix = ' for instance {0}'.format(vm_name) if vm_name else ''
+        errors_list.append('{0} is not provided{1}'.format(key, suffix))
+        return False
+    return True
 
 
-def _check_existing_vms(config):
-    ca_cert_path = config.get('ca_cert_path')
-    if ca_cert_path:
-        _check_path(config, 'ca_cert_path')
-
+def _check_existing_vms(config, errors_list):
     existing_vms_list = config.get('existing_vms')
+    ca_path_exists = _check_path(config, 'ca_cert_path', errors_list)
     for vm_name, vm_dict in existing_vms_list.items():
         logger.info('Validating %s', vm_name)
-        if (not vm_dict['private_ip']) or (not vm_dict['public_ip']):
-            raise ValidationError('private_ip and public_ip should be '
-                                  'specified for all instances')
-        if ca_cert_path:
-            cert_path = vm_dict.get('cert_path')
-            key_path = vm_dict.get('key_path')
-            if (not cert_path) or (not key_path):
-                raise ValidationError('cert_path and key_path should be '
-                                      'specified for all instances')
-            check_cert_key_match(cert_path, key_path)
-            check_signed_by(ca_cert_path, cert_path)
-            check_san(vm_name, vm_dict, cert_path)
+        if not vm_dict.get('private_ip'):
+            errors_list.append('private_ip should be provided for '
+                               '{0}'.format(vm_name))
+
+        if ca_path_exists:
+            ca_cert_path = config.get('ca_cert_path')
+            key_path_exists = _check_path(vm_dict, 'key_path',
+                                          errors_list, vm_name)
+            if _check_path(vm_dict, 'cert_path', errors_list, vm_name):
+                cert_path = vm_dict.get('cert_path')
+                if check_cert_path(cert_path, errors_list):
+                    if key_path_exists:
+                        key_path = vm_dict.get('key_path')
+                        check_cert_key_match(cert_path, key_path, errors_list)
+
+                    check_signed_by(ca_cert_path, cert_path, errors_list)
+                    check_san(vm_name, vm_dict, cert_path, errors_list)
 
 
 def _validate_config(config):
-    _check_path(config, 'key_file_path')
-    _check_value_supplied(config, 'machine_username')
-    _check_path(config, 'cloudify_license_path')
-    _check_value_supplied(config, 'manager_rpm_download_link')
-    _check_existing_vms(config)
+    errors_list = []
+    _check_path(config, 'key_file_path', errors_list)
+    _check_value_provided(config, 'machine_username', errors_list)
+    _check_path(config, 'cloudify_license_path', errors_list)
+    _check_value_provided(config, 'manager_rpm_download_link', errors_list)
+    _check_existing_vms(config, errors_list)
+    if errors_list:
+        raise_errors_list(errors_list)
 
 
 def install(config_path):
