@@ -13,7 +13,7 @@ from os.path import (basename, dirname, exists, expanduser, isdir, join,
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from .logger import get_cfy_cluster_setup_logger, setup_console_logger
+from .logger import get_cfy_cluster_setup_logger, setup_logger
 from .utils import (check_cert_key_match, check_cert_path, check_san,
                     check_signed_by, cloudify_is_installed,
                     ClusterInstallError, copy, current_host_ip,
@@ -59,12 +59,8 @@ class CfyNode(VM):
 
 
 def _exception_handler(type_, value, traceback):
-    error = type_.__name__
-    if str(value):
-        error = '{0}: {1}'.format(error, value)
-    logger.error(error)
-    debug_traceback = ''.join(format_exception(type_, value, traceback))
-    logger.debug(debug_traceback)
+    exception_traceback = ''.join(format_exception(type_, value, traceback))
+    logger.exception(exception_traceback)
 
 
 sys.excepthook = _exception_handler
@@ -376,7 +372,7 @@ def _validate_config(config):
 
 
 def generate_config(output_path, verbose):
-    setup_console_logger(verbose)
+    setup_logger(verbose)
     output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
     if isdir(output_path):
         output_path = join(output_path, CLUSTER_CONFIG_FILE_NAME)
@@ -386,7 +382,7 @@ def generate_config(output_path, verbose):
 
 
 def install(config_path, verbose):
-    setup_console_logger(verbose)
+    setup_logger(verbose)
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
