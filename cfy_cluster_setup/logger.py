@@ -5,6 +5,7 @@ import logging
 
 FORMAT_MSG = '%(name)s - %(levelname)s - %(message)s'
 
+
 def setup_logger(verbose):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
