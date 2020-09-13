@@ -84,7 +84,7 @@ existing_vms:
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
 
-# If the credentials are not specified, random ones will be used and written to a dedicated file
+# If the credentials are not specified, random ones will be used and written to ./secret_credentials.yaml
 credentials:
   manager:
     admin_username: 'admin'
