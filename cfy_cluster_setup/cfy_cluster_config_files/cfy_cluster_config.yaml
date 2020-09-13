@@ -17,8 +17,7 @@ ca_cert_path: ''
 # This IP will be written the the config.yaml files.
 load_balancer_ip: ''
 
-# In case you are using a 3 nodes cluster, just fill in the `manager` items
-# Otherwise, fill in all items
+
 existing_vms:
     manager-1:
       private_ip: ''

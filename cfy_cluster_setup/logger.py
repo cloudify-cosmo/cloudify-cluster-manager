@@ -11,10 +11,10 @@ def setup_logger(verbose):
     logger.setLevel(logging.DEBUG)
 
     # paramiko.transport, invoke, and fabric are very verbose
-    if not verbose:
-        logging.getLogger('paramiko.transport').setLevel(logging.WARNING)
-        logging.getLogger('invoke').setLevel(logging.WARNING)
-        logging.getLogger('fabric').setLevel(logging.WARNING)
+    packages_log_level = logging.INFO if verbose else logging.WARNING
+    logging.getLogger('paramiko.transport').setLevel(packages_log_level)
+    logging.getLogger('invoke').setLevel(packages_log_level)
+    logging.getLogger('fabric').setLevel(packages_log_level)
 
     logger = logging.getLogger()
     log_level = logging.DEBUG if verbose else logging.INFO
