@@ -349,7 +349,8 @@ def _check_value_provided(dictionary, key, errors_list, vm_name=None):
 
 def _check_existing_vms(config, errors_list):
     existing_vms_list = config.get('existing_vms')
-    ca_path_exists = _check_path(config, 'ca_cert_path', errors_list)
+    ca_path_exists = (_using_provided_certificates(config) and
+                      _check_path(config, 'ca_cert_path', errors_list))
     for vm_name, vm_dict in existing_vms_list.items():
         logger.info('Validating %s', vm_name)
         if not vm_dict.get('private_ip'):
