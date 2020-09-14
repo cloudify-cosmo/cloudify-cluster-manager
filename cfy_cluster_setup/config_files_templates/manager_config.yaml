@@ -21,17 +21,24 @@ rabbitmq:
   ca_path: {{ ca_path }}
 
 postgresql_server:
-  ssl_enabled: true
-  ca_path: {{ ca_path }}
-
-  postgres_password: {{ creds.postgresql.postgres_password }}
   cluster:
     nodes: {{ postgresql_cluster }}
+  {% if external_db_configuration %}
+  ca_path: {{ external_db_configuration.ca_path }}
+  {% else %}
+  ca_path: {{ ca_path }}
+  ssl_enabled: true
+  postgres_password: {{ creds.postgresql.postgres_password }}
+  {% endif %}
 
 postgresql_client:
+  {% if external_db_configuration %}
+  {{ external_db_configuration }}
+  {% else %}
   ssl_enabled: true
   server_password: {{ creds.postgresql.postgres_password }}
   ssl_client_verification: true
+  {% endif %}
 
 validations:
   minimum_required_total_physical_memory_in_mb: 1024

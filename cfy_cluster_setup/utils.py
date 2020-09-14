@@ -161,7 +161,7 @@ class VM(object):
             raise ClusterInstallError(
                 '{} is not a directory'.format(local_dir_path))
 
-        logger.debug('Copying %s to %s on host %a',
+        logger.debug('Copying %s to %s on host %s',
                      local_dir_path, remote_dir_path, self.private_ip)
         if override:
             self.run_command('rm -rf {}'.format(remote_dir_path))
