@@ -40,7 +40,6 @@ EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
 
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
 CLUSTER_CONFIG_FILES_DIR = join(dirname(__file__), 'cfy_cluster_config_files')
-THREE_NODES_CLUSTER_CONFIG_FILE_NAME = 'cfy_three_nodes_cluster_config.yaml'
 CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
