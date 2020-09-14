@@ -268,11 +268,7 @@ def _create_cluster_install_directory():
     logger.info('Creating `{0}` directory'.format(DIR_NAME))
     if exists(CLUSTER_INSTALL_DIR):
         new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + DIR_NAME)
-        sudo(['mv', CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname)])
-        for dir_name in os.listdir(TOP_DIR):  # Delete old dir
-            if (DIR_NAME in dir_name) and (dir_name < new_dirname):
-                sudo(['rm', '-rf', join(TOP_DIR, dir_name)])
-                break  # There is only one
+        run(['mv', CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname)])
 
     os.mkdir(CLUSTER_INSTALL_DIR)
 
