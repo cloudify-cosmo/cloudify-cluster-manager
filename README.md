@@ -1,1 +1,1 @@
-# cloudify-cluster-setup
+# cloudify-cluster-manager

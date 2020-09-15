@@ -17,16 +17,16 @@ from setuptools import setup
 
 
 setup(
-    name='cloudify-cluster-setup',
+    name='cloudify-cluster-manager',
     version='0.0.1.dev1',
     author='Cloudify',
     author_email='cosmo-admin@cloudify.co',
-    packages=['cfy_cluster_setup'],
+    packages=['cfy_cluster_manager'],
     license='LICENSE',
     description="Install a Cloudify cluster",
     entry_points={
         'console_scripts': [
-            'cfy_cluster_setup = cfy_cluster_setup.main:main'
+            'cfy_cluster_manager = cfy_cluster_manager.main:main'
         ]
     },
     install_requires=[

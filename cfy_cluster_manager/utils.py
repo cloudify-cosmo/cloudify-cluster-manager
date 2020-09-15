@@ -10,9 +10,9 @@ import yaml
 from fabric import Connection
 from paramiko import AuthenticationException
 
-from .logger import get_cfy_cluster_setup_logger
+from .logger import get_cfy_cluster_manager_logger
 
-logger = get_cfy_cluster_setup_logger()
+logger = get_cfy_cluster_manager_logger()
 
 
 class ClusterInstallError(Exception):
