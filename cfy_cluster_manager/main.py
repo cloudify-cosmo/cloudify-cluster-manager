@@ -43,6 +43,10 @@ CLUSTER_CONFIG_FILES_DIR = join(dirname(__file__), 'cfy_cluster_config_files')
 CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
+SYSTEMD_RUN_UNIT_NAME = 'cfy_manager_install'
+RUNNING = "Running"
+FAILED = "Failed"
+
 
 class CfyNode(VM):
     def __init__(self,
@@ -63,8 +67,12 @@ class CfyNode(VM):
 
 
 def _exception_handler(type_, value, traceback):
-    exception_traceback = ''.join(format_exception(type_, value, traceback))
-    logger.exception(exception_traceback)
+    error = type_.__name__
+    if str(value):
+        error = '{0}: {1}'.format(error, str(value))
+    logger.error(error)
+    debug_traceback = ''.join(format_exception(type_, value, traceback))
+    logger.debug(debug_traceback)
 
 
 sys.excepthook = _exception_handler
@@ -212,12 +220,42 @@ def _install_cloudify_remotely(instance, rpm_download_link):
             'yum install -y {}'.format(RPM_PATH), use_sudo=True)
 
 
+def _check_install_status(instance):
+    result = instance.run_command(
+        'systemctl status {}'.format(SYSTEMD_RUN_UNIT_NAME),
+        use_sudo=True, hide_stdout=True, ignore_failure=True)
+    if result.return_code == 0:
+        return RUNNING
+    elif result.return_code == 3:
+        return FAILED
+    elif result.return_code == 4:  # Not found, needs to be installed
+        return
+    else:
+        raise ClusterInstallError('Service {} status is '
+                                  'unknown'.format(SYSTEMD_RUN_UNIT_NAME))
+
+
 def _install_instances(instances_dict, using_three_nodes,
                        rpm_download_link, verbose):
     for i, instance_type in enumerate(instances_dict):
         logger.info('installing %s instances', instance_type)
         three_nodes_not_first_round = using_three_nodes and i > 0
         for instance in instances_dict[instance_type]:
+            install_status = _check_install_status(instance)
+            if install_status == RUNNING:
+                logger.info('Cloudify is currently being installed on %s',
+                            instance.private_ip)
+                continue
+            elif install_status == FAILED:
+                logger.info('There was an error in the previous installation '
+                            'of Cloudify on instance %s. Please check the logs'
+                            ' under /var/log/cloudify/manager/cfy_manager.log.'
+                            'You can remove the failed service by running '
+                            '`systemctl reset-failed %s` on the instance. '
+                            'Exiting...', instance.private_ip,
+                            SYSTEMD_RUN_UNIT_NAME)
+                exit(1)
+
             logger.info('Installing %s', instance.name)
             if (instance.private_ip == current_host_ip() or
                     three_nodes_not_first_round):
@@ -239,7 +277,8 @@ def _install_instances(instances_dict, using_three_nodes,
             install_cmd = 'cfy_manager install -c {config} {verbose}'.format(
                 config=dest_instance_config, verbose='-v' if verbose else '')
 
-            instance.run_command(install_cmd)
+            instance.run_command(install_cmd,
+                                 systemd_run_unit_name=SYSTEMD_RUN_UNIT_NAME)
 
 
 def _sort_instances_dict(instances_dict):
@@ -510,16 +549,16 @@ def install(config_path, verbose):
     load_balancer_ip = config.get('load_balancer_ip')
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))
-    _create_cluster_install_directory()
-    copy(config.get('cloudify_license_path'),
-         join(CLUSTER_INSTALL_DIR, 'license.yaml'))
-    _install_cloudify_locally(rpm_download_link)
-
     using_three_nodes_cluster = _using_three_nodes_cluster(config)
     external_db_config = _get_external_db_config(config)
     instances_dict = (_generate_three_nodes_cluster_dict(config)
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
+
+    _create_cluster_install_directory()
+    copy(config.get('cloudify_license_path'),
+         join(CLUSTER_INSTALL_DIR, 'license.yaml'))
+    _install_cloudify_locally(rpm_download_link)
     _handle_certificates(config, instances_dict)
     _prepare_config_files(instances_dict, credentials, load_balancer_ip,
                           external_db_config)

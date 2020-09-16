@@ -113,14 +113,23 @@ class VM(object):
         finally:
             connection.close()
 
-    def run_command(self, command, hide_stdout=False, use_sudo=False):
+    def run_command(self,
+                    command,
+                    hide_stdout=False,
+                    use_sudo=False,
+                    systemd_run_unit_name=None,
+                    ignore_failure=False):
         hide = 'both' if hide_stdout else 'stderr'
         with self._get_connection() as connection:
             logger.debug('Running `%s` on %s', command, self.private_ip)
+            if systemd_run_unit_name:
+                command = ('systemd-run --unit {0} -t {1}'.format(
+                    systemd_run_unit_name, command))
+                use_sudo = True
             result = (connection.sudo(command, warn=True, hide=hide)
                       if use_sudo else
                       connection.run(command, warn=True, hide=hide))
-            if result.failed:
+            if result.stderr and not ignore_failure:
                 if hide == 'both':  # No logs are shown
                     raise ClusterInstallError(
                         'The command `{0}` on host {1} failed with the '
@@ -128,7 +137,8 @@ class VM(object):
                                            result.stderr))
                 raise ClusterInstallError(
                     'Error on host {0}'.format(self.private_ip))
-            return result.stdout
+
+            return result
 
     def put_file(self, local_path, remote_path):
         if not isfile(local_path):
