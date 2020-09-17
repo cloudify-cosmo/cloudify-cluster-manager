@@ -49,13 +49,15 @@ class CfyNode(VM):
                  key_file_path,
                  username,
                  node_name,
-                 hostname):
+                 hostname,
+                 cert_path,
+                 key_path):
         super(CfyNode, self).__init__(private_ip, public_ip,
                                       key_file_path, username)
         self.name = node_name
         self.hostname = hostname
-        self.cert_path = join(CERTS_DIR, self.name + '_cert.pem')
-        self.key_path = join(CERTS_DIR, self.name + '_key.pem')
+        self.cert_path = cert_path
+        self.key_path = key_path
 
 
 def _exception_handler(type_, value, traceback):
@@ -82,7 +84,8 @@ def _generate_certs(instances_dict):
         for instance in instances_list:
             _generate_instance_certificate(instance)
     copy(join(CFY_CERTS_PATH, 'ca.crt'), join(CFY_CERTS_PATH, 'ca.pem'))
-    os.mkdir(CERTS_DIR)
+    if not exists(CERTS_DIR):
+        os.mkdir(CERTS_DIR)
     copy(join(CFY_CERTS_PATH, '.'), CERTS_DIR)
     shutil.rmtree(CFY_CERTS_PATH)
 
@@ -229,19 +232,31 @@ def _sort_instances_dict(instances_dict):
             instance_items.sort(key=lambda x: int(x.name.rsplit('-', 1)[1]))
 
 
+def _using_provided_certificates(config):
+    return config.get('ca_cert_path')
+
+
 def _get_instances_dict(config):
     instances_dict = OrderedDict(
         (('postgresql', []), ('rabbitmq', []), ('manager', [])))
     username = config.get('machine_username')
     logger.info('Validating connection to instances')
     for node_name, node_dict in config.get('existing_vms').items():
+        cert_path = join(CERTS_DIR, node_name + '_cert.pem')
+        key_path = join(CERTS_DIR, node_name + '_key.pem')
+        if _using_provided_certificates(config):
+            copy(expanduser(node_dict.get('cert_path')), cert_path)
+            copy(expanduser(node_dict.get('key_path')), key_path)
+
         public_ip = node_dict.get('public_ip') or node_dict.get('private_ip')
         new_vm = CfyNode(node_dict.get('private_ip'),
                          public_ip,
                          config.get('key_file_path'),
                          username,
                          node_name,
-                         node_dict.get('hostname'))
+                         node_dict.get('hostname'),
+                         cert_path,
+                         key_path)
         logger.debug('Testing connection to %s', new_vm.private_ip)
         new_vm.test_connection()
         instances_dict[node_name.split('-')[0]].append(new_vm)
@@ -253,11 +268,7 @@ def _create_cluster_install_directory():
     logger.info('Creating `{0}` directory'.format(DIR_NAME))
     if exists(CLUSTER_INSTALL_DIR):
         new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + DIR_NAME)
-        os.rename(CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname))
-        for dir_name in os.listdir(TOP_DIR):  # Delete old dir
-            if (DIR_NAME in dir_name) and (dir_name < new_dirname):
-                shutil.rmtree(join(TOP_DIR, dir_name))
-                break  # There is only one
+        run(['mv', CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname)])
 
     os.mkdir(CLUSTER_INSTALL_DIR)
 
@@ -338,7 +349,8 @@ def _check_value_provided(dictionary, key, errors_list, vm_name=None):
 
 def _check_existing_vms(config, errors_list):
     existing_vms_list = config.get('existing_vms')
-    ca_path_exists = _check_path(config, 'ca_cert_path', errors_list)
+    ca_path_exists = (_using_provided_certificates(config) and
+                      _check_path(config, 'ca_cert_path', errors_list))
     for vm_name, vm_dict in existing_vms_list.items():
         logger.info('Validating %s', vm_name)
         if not vm_dict.get('private_ip'):
@@ -394,13 +406,16 @@ def install(config_path, verbose):
     load_balancer_ip = config.get('load_balancer_ip')
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))
-    instances_dict = _get_instances_dict(config)
     _create_cluster_install_directory()
     copy(config.get('cloudify_license_path'),
          join(CLUSTER_INSTALL_DIR, 'license.yaml'))
-
     _install_cloudify_locally(rpm_download_link)
-    _generate_certs(instances_dict)
+
+    instances_dict = _get_instances_dict(config)
+    if _using_provided_certificates(config):
+        copy(expanduser(config.get('ca_cert_path')), CA_PATH)
+    else:
+        _generate_certs(instances_dict)
     _prepare_config_files(instances_dict, credentials, load_balancer_ip)
     _install_instances(instances_dict, rpm_download_link, verbose)
     _log_managers_connection_strings(instances_dict['manager'])

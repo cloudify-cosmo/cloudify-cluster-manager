@@ -143,6 +143,9 @@ class VM(object):
     def put_dir(self, local_dir_path, remote_dir_path, override=False):
         """Copy a local directory to a remote host.
 
+        This function wraps the recursive function _put_dir(). This way
+        we open a connection only once instead of in each recursion step.
+
         :param local_dir_path: An existing local directory path.
         :param remote_dir_path: A directory path on the remote host. If the
                                 path doesn't exist, it will be created.
@@ -162,13 +165,19 @@ class VM(object):
                      local_dir_path, remote_dir_path, self.private_ip)
         if override:
             self.run_command('rm -rf {}'.format(remote_dir_path))
-        self.run_command('mkdir -p {}'. format(remote_dir_path))
+        self._put_dir(self._get_connection(), local_dir_path, remote_dir_path)
+
+    def _put_dir(self, connection, local_dir_path, remote_dir_path):
+        connection.run('mkdir -p {}'. format(remote_dir_path), warn=True,
+                       hide='stderr')
         for file_name in os.listdir(local_dir_path):
             object_path = join(local_dir_path, file_name)
             if isfile(object_path):
-                self.put_file(join(local_dir_path, file_name), remote_dir_path)
+                connection.put(expanduser(join(local_dir_path, file_name)),
+                               remote_dir_path)
             elif isdir(object_path):
-                self.put_dir(object_path, join(remote_dir_path, file_name))
+                self._put_dir(connection, object_path,
+                              join(remote_dir_path, file_name))
 
 
 def get_dict_from_yaml(yaml_path):
