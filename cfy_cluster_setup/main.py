@@ -37,8 +37,10 @@ CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 CA_PATH = join(CERTS_DIR, 'ca.pem')
 
-CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
+CLUSTER_CONFIG_FILES_DIR = join(dirname(__file__), 'cfy_cluster_config_files')
+THREE_NODES_CLUSTER_CONFIG_FILE_NAME = 'cfy_three_nodes_cluster_config.yaml'
+CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
 
@@ -198,13 +200,16 @@ def _install_cloudify_remotely(instance, rpm_download_link):
             'yum install -y {}'.format(RPM_PATH), use_sudo=True)
 
 
-def _install_instances(instances_dict, rpm_download_link, verbose):
-    for instance_type in instances_dict:
+def _install_instances(instances_dict, using_three_nodes,
+                       rpm_download_link, verbose):
+    for i, instance_type in enumerate(instances_dict):
         logger.info('installing %s instances', instance_type)
+        three_nodes_first_round = using_three_nodes and i == 0
         for instance in instances_dict[instance_type]:
-            if instance.private_ip == current_host_ip():
-                logger.info('Running on %s, no need to install Cloudify again',
-                            instance.name)
+            logger.info('Installing %s', instance.name)
+            if (instance.private_ip == current_host_ip() or
+                    not three_nodes_first_round):
+                logger.info('Already installed Cloudify RPM on this instance')
             else:
                 logger.info('Copying the %s directory to %s',
                             CLUSTER_INSTALL_DIR, instance.name)
@@ -219,7 +224,6 @@ def _install_instances(instances_dict, rpm_download_link, verbose):
                 join(CONFIG_FILES_DIR, instance_config), dest_instance_config),
                 use_sudo=True)
 
-            logger.info('Installing %s', instance.name)
             install_cmd = 'cfy_manager install -c {config} {verbose}'.format(
                 config=dest_instance_config, verbose='-v' if verbose else '')
 
@@ -236,30 +240,55 @@ def _using_provided_certificates(config):
     return config.get('ca_cert_path')
 
 
-def _get_instances_dict(config):
-    instances_dict = OrderedDict(
-        (('postgresql', []), ('rabbitmq', []), ('manager', [])))
-    username = config.get('machine_username')
-    logger.info('Validating connection to instances')
-    for node_name, node_dict in config.get('existing_vms').items():
-        cert_path = join(CERTS_DIR, node_name + '_cert.pem')
-        key_path = join(CERTS_DIR, node_name + '_key.pem')
-        if _using_provided_certificates(config):
-            copy(expanduser(node_dict.get('cert_path')), cert_path)
-            copy(expanduser(node_dict.get('key_path')), key_path)
+def _using_three_nodes_cluster(config):
+    return len(config.get('existing_vms')) == 3
 
-        public_ip = node_dict.get('public_ip') or node_dict.get('private_ip')
-        new_vm = CfyNode(node_dict.get('private_ip'),
-                         public_ip,
-                         config.get('key_file_path'),
-                         username,
-                         node_name,
-                         node_dict.get('hostname'),
-                         cert_path,
-                         key_path)
+
+def _get_cfy_node(config, node_dict, node_name, validate_connection=True):
+    username = config.get('machine_username')
+    cert_path = join(CERTS_DIR, node_name + '_cert.pem')
+    key_path = join(CERTS_DIR, node_name + '_key.pem')
+    if _using_provided_certificates(config):
+        copy(expanduser(node_dict.get('cert_path')), cert_path)
+        copy(expanduser(node_dict.get('key_path')), key_path)
+
+    public_ip = node_dict.get('public_ip') or node_dict.get('private_ip')
+    new_vm = CfyNode(node_dict.get('private_ip'),
+                     public_ip,
+                     config.get('key_file_path'),
+                     username,
+                     node_name,
+                     node_dict.get('hostname'),
+                     cert_path,
+                     key_path)
+    if validate_connection:
         logger.debug('Testing connection to %s', new_vm.private_ip)
         new_vm.test_connection()
+
+    return new_vm
+
+
+def _generate_three_nodes_cluster_dict(config):
+    instances_dict = OrderedDict(
+        (('postgresql', []), ('rabbitmq', []), ('manager', [])))
+    existing_nodes_list = config.get('existing_vms').values()
+    for node_type in instances_dict:
+        for i, node_dict in enumerate(existing_nodes_list):
+            new_vm = _get_cfy_node(config,
+                                   node_dict,
+                                   node_name=(node_type + '-' + str(i+1)),
+                                   validate_connection=(i == 0))
+            instances_dict[node_type].append(new_vm)
+    return instances_dict
+
+
+def generate_general_cluster_dict(config):
+    instances_dict = OrderedDict(
+        (('postgresql', []), ('rabbitmq', []), ('manager', [])))
+    for node_name, node_dict in config.get('existing_vms').items():
+        new_vm = _get_cfy_node(config, node_dict, node_name)
         instances_dict[node_name.split('-')[0]].append(new_vm)
+
     _sort_instances_dict(instances_dict)
     return instances_dict
 
@@ -383,12 +412,17 @@ def _validate_config(config):
         raise_errors_list(errors_list)
 
 
-def generate_config(output_path, verbose):
+def generate_config(output_path, verbose, using_three_nodes):
     setup_logger(verbose)
     output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
     if isdir(output_path):
         output_path = join(output_path, CLUSTER_CONFIG_FILE_NAME)
-    copy(join(dirname(__file__), CLUSTER_CONFIG_FILE_NAME), output_path)
+    if using_three_nodes:
+        copy(join(CLUSTER_CONFIG_FILES_DIR,
+                  THREE_NODES_CLUSTER_CONFIG_FILE_NAME), output_path)
+    else:
+        copy(join(CLUSTER_CONFIG_FILES_DIR, CLUSTER_CONFIG_FILE_NAME),
+             output_path)
     logger.info('Created the cluster install configuration file in %s',
                 output_path)
 
@@ -411,13 +445,18 @@ def install(config_path, verbose):
          join(CLUSTER_INSTALL_DIR, 'license.yaml'))
     _install_cloudify_locally(rpm_download_link)
 
-    instances_dict = _get_instances_dict(config)
+    using_three_nodes_cluster = _using_three_nodes_cluster(config)
+    instances_dict = (_generate_three_nodes_cluster_dict(config)
+                      if using_three_nodes_cluster else
+                      generate_general_cluster_dict(config))
+    logger.info(instances_dict)
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
     else:
         _generate_certs(instances_dict)
     _prepare_config_files(instances_dict, credentials, load_balancer_ip)
-    _install_instances(instances_dict, rpm_download_link, verbose)
+    _install_instances(instances_dict, using_three_nodes_cluster,
+                       rpm_download_link, verbose)
     _log_managers_connection_strings(instances_dict['manager'])
     logger.info('The credentials file was saved to %s', CREDENTIALS_FILE_PATH)
     _print_successful_installation_message(start_time)
@@ -449,6 +488,12 @@ def main():
         help='The local path to save the cluster install configuration file '
              'to. default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
 
+    generate_config_args.add_argument(
+        '--three-nodes',
+        action='store_true',
+        default=False,
+        help='Using a three nodes cluster.')
+
     add_verbose_arg(generate_config_args)
 
     install_args = subparsers.add_parser(
@@ -467,7 +512,7 @@ def main():
     args = parser.parse_args()
 
     if args.action == 'generate-config':
-        generate_config(args.output, args.verbose)
+        generate_config(args.output, args.verbose, args.three_nodes)
 
     elif args.action == 'install':
         install(args.config_path, args.verbose)
