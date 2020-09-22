@@ -1,9 +1,9 @@
 manager:
   private_ip: {{ node.private_ip }}
   public_ip: {{ node.public_ip }}
-  {% if node.hostname %}
+  {% if node.hostname-%}
   hostname: {{ node.hostname }}
-  {% endif %}
+  {%-endif %}
 
 rabbitmq:
   username: {{ creds.rabbitmq.username }}
@@ -17,9 +17,9 @@ rabbitmq:
 
   nodename: {{ node.name }}
 
-  {% if join_cluster %}
+  {% if join_cluster-%}
   join_cluster: {{ join_cluster }}
-  {% endif %}
+  {%-endif %}
 
   erlang_cookie: {{ creds.rabbitmq.erlang_cookie }}
 

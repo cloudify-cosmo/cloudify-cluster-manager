@@ -1,9 +1,9 @@
 manager:
   private_ip: {{ node.private_ip }}
   public_ip: {{ node.public_ip }}
-  {% if node.hostname %}
+  {% if node.hostname-%}
   hostname: {{ node.hostname }}
-  {% endif %}
+  {%-endif %}
 
   security:
     ssl_enabled: true
@@ -23,30 +23,30 @@ rabbitmq:
 postgresql_server:
   cluster:
     nodes: {{ postgresql_cluster }}
-  {% if external_db_configuration %}
+  {% if external_db_configuration-%}
   ca_path: {{ external_db_configuration.ca_path }}
-  {% else %}
+  {%-else-%}
   ca_path: {{ ca_path }}
   ssl_enabled: true
   postgres_password: {{ creds.postgresql.postgres_password }}
-  {% endif %}
+  {%-endif %}
 
 postgresql_client:
-  {% if external_db_configuration %}
+  {% if external_db_configuration-%}
   {{ external_db_configuration }}
-  {% else %}
+  {%-else-%}
   ssl_enabled: true
   server_password: {{ creds.postgresql.postgres_password }}
   ssl_client_verification: true
-  {% endif %}
+  {%-endif %}
 
 validations:
   minimum_required_total_physical_memory_in_mb: 1024
 
-{% if load_balancer_ip %}
+{% if load_balancer_ip-%}
 networks:
   load_balancer: {{ load_balancer_ip }}
-{% endif %}
+{%-endif %}
 
 ssl_inputs:
   external_cert_path: {{ node.cert_path }}
