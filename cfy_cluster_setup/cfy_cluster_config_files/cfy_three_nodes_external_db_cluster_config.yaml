@@ -41,27 +41,35 @@ existing_vms:
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
 
+external_db_configuration:
+  host: '' # The external DB host name (or IP address)
+  ca_path: '' # The external DB CA certificate
+
+  # If your database is an Azure DBaaS instance, you must set 'server_username'
+  # so it includes the database name as a suffix. For example, if your database
+  # name is "mycfydb" and your username is "test", then "server_username"
+  # should be "mycfydb@test".
+  server_db_name: ''  # master db name
+  server_username: ''  # master username to login external database
+  server_password: ''  # password of master username to login external database
+
+  # The following apply if your database is an Azure DBaaS instance:
+  #
+  #   * "cloudify_username" must include the database name as a suffix. For example,
+  #     if your desired database username is "cloudify" and your database name is
+  #     "test", then "cloudify_username" should be "cloudify@test".
+  #
+  #   * "cloudify_username" must be different from "server_username".
+  cloudify_db_name: cloudify_db
+  cloudify_username: cloudify
+  cloudify_password: ''
+
+
 # If the credentials are not specified, random ones will be used and written to {{ credentials_file_path }}
 credentials:
   manager:
     admin_username: 'admin'
     admin_password: ''
-
-  postgresql:
-    postgres_password: ''
-    cluster:
-      etcd:
-        cluster_token: ''
-        root_password: ''
-        patroni_password: ''
-      patroni:
-        rest_password: ''
-      postgres:
-        replicator_password: ''
-
-    db_monitoring:
-      username: ''
-      password: ''
 
   rabbitmq:
     username: ''

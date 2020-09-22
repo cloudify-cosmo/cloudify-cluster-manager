@@ -36,10 +36,10 @@ CERTS_DIR = join(CLUSTER_INSTALL_DIR, CERTS_DIR_NAME)
 CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 CA_PATH = join(CERTS_DIR, 'ca.pem')
+EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
 
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
 CLUSTER_CONFIG_FILES_DIR = join(dirname(__file__), 'cfy_cluster_config_files')
-THREE_NODES_CLUSTER_CONFIG_FILE_NAME = 'cfy_three_nodes_cluster_config.yaml'
 CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
@@ -135,21 +135,27 @@ def _prepare_rabbitmq_config_files(template, rabbitmq_instances, credentials):
 def _prepare_manager_config_files(template,
                                   instances_dict,
                                   credentials,
-                                  load_balancer_ip):
+                                  load_balancer_ip,
+                                  external_db_config):
     logger.info('Preparing Manager config files')
-    license_path = join(CLUSTER_INSTALL_DIR, 'license.yaml')
-    postgresql_cluster = _get_postgresql_cluster_members(
-        instances_dict['postgresql'])
-    rabbitmq_cluster = _get_rabbitmq_cluster_members(
-        instances_dict['rabbitmq'])
+    if external_db_config:
+        external_db_config.update({'ssl_client_verification': False,
+                                   'ca_path': EXTERNAL_DB_CA_PATH})
+
     for node in instances_dict['manager']:
-        rendered_data = template.render(node=node,
-                                        creds=credentials,
-                                        ca_path=CA_PATH,
-                                        license_path=license_path,
-                                        load_balancer_ip=load_balancer_ip,
-                                        rabbitmq_cluster=rabbitmq_cluster,
-                                        postgresql_cluster=postgresql_cluster)
+        rendered_data = template.render(
+            node=node,
+            creds=credentials,
+            ca_path=CA_PATH,
+            license_path=join(CLUSTER_INSTALL_DIR, 'license.yaml'),
+            load_balancer_ip=load_balancer_ip,
+            rabbitmq_cluster=_get_rabbitmq_cluster_members(
+                instances_dict['rabbitmq']),
+            postgresql_cluster={} if external_db_config else
+            _get_postgresql_cluster_members(instances_dict['postgresql']),
+            external_db_configuration=external_db_config
+        )
+
         _create_config_file(rendered_data, node.name)
 
 
@@ -159,16 +165,20 @@ def _create_config_file(rendered_data, node_name):
         config_file.write(rendered_data)
 
 
-def _prepare_config_files(instances_dict, credentials, load_balancer_ip):
+def _prepare_config_files(instances_dict,
+                          credentials,
+                          load_balancer_ip,
+                          external_db_config):
     os.mkdir(join(CLUSTER_INSTALL_DIR, 'config_files'))
     templates_env = Environment(
         loader=FileSystemLoader(
             join(dirname(__file__), 'config_files_templates')))
 
-    _prepare_postgresql_config_files(
-        templates_env.get_template('postgresql_config.yaml'),
-        instances_dict['postgresql'],
-        credentials)
+    if not external_db_config:
+        _prepare_postgresql_config_files(
+            templates_env.get_template('postgresql_config.yaml'),
+            instances_dict['postgresql'],
+            credentials)
 
     _prepare_rabbitmq_config_files(
         templates_env.get_template('rabbitmq_config.yaml'),
@@ -179,7 +189,9 @@ def _prepare_config_files(instances_dict, credentials, load_balancer_ip):
         templates_env.get_template('manager_config.yaml'),
         instances_dict,
         credentials,
-        load_balancer_ip)
+        load_balancer_ip,
+        external_db_config
+    )
 
 
 def _install_cloudify_remotely(instance, rpm_download_link):
@@ -204,11 +216,11 @@ def _install_instances(instances_dict, using_three_nodes,
                        rpm_download_link, verbose):
     for i, instance_type in enumerate(instances_dict):
         logger.info('installing %s instances', instance_type)
-        three_nodes_first_round = using_three_nodes and i == 0
+        three_nodes_not_first_round = using_three_nodes and i > 0
         for instance in instances_dict[instance_type]:
             logger.info('Installing %s', instance.name)
             if (instance.private_ip == current_host_ip() or
-                    not three_nodes_first_round):
+                    three_nodes_not_first_round):
                 logger.info('Already installed Cloudify RPM on this instance')
             else:
                 logger.info('Copying the %s directory to %s',
@@ -244,6 +256,10 @@ def _using_three_nodes_cluster(config):
     return len(config.get('existing_vms')) == 3
 
 
+def _get_external_db_config(config):
+    return config.get('external_db_configuration')
+
+
 def _get_cfy_node(config, node_dict, node_name, validate_connection=True):
     username = config.get('machine_username')
     cert_path = join(CERTS_DIR, node_name + '_cert.pem')
@@ -268,9 +284,16 @@ def _get_cfy_node(config, node_dict, node_name, validate_connection=True):
     return new_vm
 
 
-def _generate_three_nodes_cluster_dict(config):
+def _get_instances_ordered_dict(config):
     instances_dict = OrderedDict(
         (('postgresql', []), ('rabbitmq', []), ('manager', [])))
+    if _get_external_db_config(config):
+        instances_dict.pop('postgresql')
+    return instances_dict
+
+
+def _generate_three_nodes_cluster_dict(config):
+    instances_dict = _get_instances_ordered_dict(config)
     existing_nodes_list = config.get('existing_vms').values()
     for node_type in instances_dict:
         for i, node_dict in enumerate(existing_nodes_list):
@@ -282,9 +305,8 @@ def _generate_three_nodes_cluster_dict(config):
     return instances_dict
 
 
-def generate_general_cluster_dict(config):
-    instances_dict = OrderedDict(
-        (('postgresql', []), ('rabbitmq', []), ('manager', [])))
+def _generate_general_cluster_dict(config):
+    instances_dict = _get_instances_ordered_dict(config)
     for node_name, node_dict in config.get('existing_vms').items():
         new_vm = _get_cfy_node(config, node_dict, node_name)
         instances_dict[node_name.split('-')[0]].append(new_vm)
@@ -376,7 +398,7 @@ def _check_value_provided(dictionary, key, errors_list, vm_name=None):
     return True
 
 
-def _check_existing_vms(config, errors_list):
+def _validate_existing_vms(config, errors_list):
     existing_vms_list = config.get('existing_vms')
     ca_path_exists = (_using_provided_certificates(config) and
                       _check_path(config, 'ca_cert_path', errors_list))
@@ -401,30 +423,78 @@ def _check_existing_vms(config, errors_list):
                     check_san(vm_name, vm_dict, cert_path, errors_list)
 
 
+def _validate_external_db_config(config, errors_list):
+    external_db_config = _get_external_db_config(config)
+    if not external_db_config:
+        return
+
+    for key, value in external_db_config.items():
+        _check_value_provided(external_db_config, key, errors_list)
+    _check_path(external_db_config, 'ca_path', errors_list)
+
+
 def _validate_config(config):
     errors_list = []
     _check_path(config, 'key_file_path', errors_list)
     _check_value_provided(config, 'machine_username', errors_list)
     _check_path(config, 'cloudify_license_path', errors_list)
     _check_value_provided(config, 'manager_rpm_download_link', errors_list)
-    _check_existing_vms(config, errors_list)
+    _validate_existing_vms(config, errors_list)
+    _validate_external_db_config(config, errors_list)
+
     if errors_list:
         raise_errors_list(errors_list)
 
 
-def generate_config(output_path, verbose, using_three_nodes):
+def _handle_cluster_config_file(cluster_config_file_name, output_path):
+    cluster_config_files_env = Environment(
+        loader=FileSystemLoader(CLUSTER_CONFIG_FILES_DIR))
+    template = cluster_config_files_env.get_template(cluster_config_file_name)
+    rendered_data = template.render(
+        credentials_file_path=CREDENTIALS_FILE_PATH)
+    cluster_config_file_path = join(
+        CLUSTER_CONFIG_FILES_DIR, cluster_config_file_name)
+    with open(cluster_config_file_path, 'w') as cluster_config_file:
+        cluster_config_file.write(rendered_data)
+    copy(cluster_config_file_path, output_path)
+
+
+def generate_config(output_path,
+                    verbose,
+                    using_three_nodes,
+                    using_external_db):
     setup_logger(verbose)
     output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
     if isdir(output_path):
         output_path = join(output_path, CLUSTER_CONFIG_FILE_NAME)
+
     if using_three_nodes:
-        copy(join(CLUSTER_CONFIG_FILES_DIR,
-                  THREE_NODES_CLUSTER_CONFIG_FILE_NAME), output_path)
+        if using_external_db:
+            _handle_cluster_config_file(
+                'cfy_three_nodes_external_db_cluster_config.yaml', output_path)
+        else:
+            _handle_cluster_config_file(
+                'cfy_three_nodes_cluster_config.yaml', output_path)
+
+    elif using_external_db:
+        _handle_cluster_config_file(
+            'cfy_external_db_cluster_config.yaml', output_path)
     else:
-        copy(join(CLUSTER_CONFIG_FILES_DIR, CLUSTER_CONFIG_FILE_NAME),
-             output_path)
+        _handle_cluster_config_file(CLUSTER_CONFIG_FILE_NAME, output_path)
+
     logger.info('Created the cluster install configuration file in %s',
                 output_path)
+
+
+def _handle_certificates(config, instances_dict):
+    if _using_provided_certificates(config):
+        copy(expanduser(config.get('ca_cert_path')), CA_PATH)
+    else:
+        _generate_certs(instances_dict)
+
+    external_db_config = _get_external_db_config(config)
+    if external_db_config:
+        copy(external_db_config.get('ca_path'), EXTERNAL_DB_CA_PATH)
 
 
 def install(config_path, verbose):
@@ -446,15 +516,13 @@ def install(config_path, verbose):
     _install_cloudify_locally(rpm_download_link)
 
     using_three_nodes_cluster = _using_three_nodes_cluster(config)
+    external_db_config = _get_external_db_config(config)
     instances_dict = (_generate_three_nodes_cluster_dict(config)
                       if using_three_nodes_cluster else
-                      generate_general_cluster_dict(config))
-    logger.info(instances_dict)
-    if _using_provided_certificates(config):
-        copy(expanduser(config.get('ca_cert_path')), CA_PATH)
-    else:
-        _generate_certs(instances_dict)
-    _prepare_config_files(instances_dict, credentials, load_balancer_ip)
+                      _generate_general_cluster_dict(config))
+    _handle_certificates(config, instances_dict)
+    _prepare_config_files(instances_dict, credentials, load_balancer_ip,
+                          external_db_config)
     _install_instances(instances_dict, using_three_nodes_cluster,
                        rpm_download_link, verbose)
     _log_managers_connection_strings(instances_dict['manager'])
@@ -494,6 +562,12 @@ def main():
         default=False,
         help='Using a three nodes cluster.')
 
+    generate_config_args.add_argument(
+        '--external-db',
+        action='store_true',
+        default=False,
+        help='Using an external DB.')
+
     add_verbose_arg(generate_config_args)
 
     install_args = subparsers.add_parser(
@@ -512,7 +586,8 @@ def main():
     args = parser.parse_args()
 
     if args.action == 'generate-config':
-        generate_config(args.output, args.verbose, args.three_nodes)
+        generate_config(args.output, args.verbose, args.three_nodes,
+                        args.external_db)
 
     elif args.action == 'install':
         install(args.config_path, args.verbose)
