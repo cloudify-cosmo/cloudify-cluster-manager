@@ -30,8 +30,8 @@ def setup_logger(verbose):
     logger.addHandler(fh)
 
 
-def get_cfy_cluster_setup_logger():
-    return logging.getLogger('[CFY-CLUSTER-SETUP]')
+def get_cfy_cluster_manager_logger():
+    return logging.getLogger('[CFY-CLUSTER-MANAGER]')
 
 
 def _get_log_file_path():
@@ -39,4 +39,4 @@ def _get_log_file_path():
     workdir = os.path.join(base, '.cloudify/logs')
     if not os.path.exists(workdir):
         os.makedirs(workdir)
-    return os.path.join(workdir, 'cfy-cluster-setup.log')
+    return os.path.join(workdir, 'cfy-cluster-manager.log')

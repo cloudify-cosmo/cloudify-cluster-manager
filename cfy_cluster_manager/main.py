@@ -13,7 +13,7 @@ from os.path import (basename, dirname, exists, expanduser, isdir, join,
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-from .logger import get_cfy_cluster_setup_logger, setup_logger
+from .logger import get_cfy_cluster_manager_logger, setup_logger
 from .utils import (check_cert_key_match, check_cert_path, check_san,
                     check_signed_by, cloudify_is_installed,
                     ClusterInstallError, copy, current_host_ip,
@@ -21,12 +21,12 @@ from .utils import (check_cert_key_match, check_cert_path, check_san,
                     sudo, VM, yum_is_present)
 
 
-logger = get_cfy_cluster_setup_logger()
+logger = get_cfy_cluster_manager_logger()
 
 CERTS_DIR_NAME = 'certs'
 CFY_CERTS_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
 CONFIG_FILES = 'config_files'
-DIR_NAME = 'cloudify_cluster_setup'
+DIR_NAME = 'cloudify_cluster_manager'
 RPM_NAME = 'cloudify-manager-install.rpm'
 TOP_DIR = '/tmp'
 
@@ -543,7 +543,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Setting up a Cloudify cluster')
 
-    subparsers = parser.add_subparsers(help='Cloudify cluster setup action',
+    subparsers = parser.add_subparsers(help='Cloudify cluster manager action',
                                        dest='action')
 
     generate_config_args = subparsers.add_parser(
