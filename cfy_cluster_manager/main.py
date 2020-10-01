@@ -42,7 +42,7 @@ CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
 SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
-INITIAL_INSTALL_DIR = join('/etc/cloudify', '.installed')
+INITIAL_INSTALL_DIR = '/etc/cloudify/.installed'
 
 
 class CfyNode(VM):
@@ -226,16 +226,16 @@ def _wait_for_cloudify_current_installation(instance):
     logger.info(
         'Waiting for current installation of %s to finish', instance.name)
     status_code = 0
-    timeout = 0
-    while status_code == 0 and timeout <= 600:
-        if timeout % 20 == 0:
+    retry_count = 0
+    while status_code == 0 and retry_count <= 600:
+        if retry_count % 20 == 0:
             logger.info('Waiting for current installation of %s to finish',
                         instance.name)
         time.sleep(1)
-        timeout += 1
+        retry_count += 1
         status_code = _get_service_status_code(instance)
 
-    if timeout > 600:
+    if retry_count > 600:
         raise ClusterInstallError(
             'Got a time out while waiting for the current installation of '
             '%s to finish', instance.name)
@@ -245,7 +245,7 @@ def _rpm_was_installed(instance, rpm_download_link):
     rpm_name = splitext(basename(rpm_download_link))[0]
     logger.debug(
         'Checking if Cloudify RPM was installed on %s', instance.private_ip)
-    result = instance.run_command('rpm -qa | grep cloudify-manager-install',
+    result = instance.run_command('rpm -qi cloudify-manager-install',
                                   hide_stdout=True, ignore_failure=True)
     if result.failed:
         return False
