@@ -29,13 +29,15 @@ class ValidationError(ClusterInstallError):
     pass
 
 
-def run(command, retries=0, ignore_failures=False):
+def run(command, retries=0, stdin=u'', ignore_failures=False):
     if isinstance(command, str):
         command = shlex.split(command)
+    if isinstance(stdin, str):
+        stdin = stdin.encode('utf-8')
     logger.debug('Running: {0}'.format(command))
     proc = subprocess.Popen(command, stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    proc.aggr_stdout, proc.aggr_stderr = proc.communicate(input=u'')
+    proc.aggr_stdout, proc.aggr_stderr = proc.communicate(input=stdin)
     if proc.aggr_stdout is not None:
         proc.aggr_stdout = proc.aggr_stdout.decode('utf-8')
     if proc.aggr_stderr is not None:
@@ -92,7 +94,7 @@ class VM(object):
     def _get_connection(self):
         connection = Connection(
             host=self.private_ip, user=self.username, port=22,
-            connect_kwargs={'key_filename': self.key_file_path})
+            connect_kwargs={'key_filename': [self.key_file_path]})
         self.test_connection(connection)
 
         return connection
@@ -101,7 +103,7 @@ class VM(object):
         """ Connection is lazy, so **we** need to check it can be opened."""
         connection = connection or Connection(
             host=self.private_ip, user=self.username, port=22,
-            connect_kwargs={'key_filename': self.key_file_path})
+            connect_kwargs={'key_filename': [self.key_file_path]})
         try:
             connection.open()
         except (socket_error, AuthenticationException) as exc:
@@ -113,22 +115,23 @@ class VM(object):
         finally:
             connection.close()
 
-    def run_command(self, command, hide_stdout=False, use_sudo=False):
-        hide = 'both' if hide_stdout else 'stderr'
+    def run_command(self,
+                    command,
+                    hide_stdout=False,
+                    use_sudo=False,
+                    ignore_failure=False):
+        hide = True if hide_stdout else 'stderr'
         with self._get_connection() as connection:
             logger.debug('Running `%s` on %s', command, self.private_ip)
             result = (connection.sudo(command, warn=True, hide=hide)
                       if use_sudo else
                       connection.run(command, warn=True, hide=hide))
-            if result.failed:
-                if hide == 'both':  # No logs are shown
-                    raise ClusterInstallError(
-                        'The command `{0}` on host {1} failed with the '
-                        'error {2}'.format(command, self.private_ip,
-                                           result.stderr))
+            if result.failed and not ignore_failure:
                 raise ClusterInstallError(
-                    'Error on host {0}'.format(self.private_ip))
-            return result.stdout
+                    'The command `{0}` on host {1} failed with the error '
+                    '{2}'.format(command, self.private_ip, result.stderr))
+
+            return result
 
     def put_file(self, local_path, remote_path):
         if not isfile(local_path):
@@ -179,6 +182,11 @@ class VM(object):
                 self._put_dir(connection, object_path,
                               join(remote_dir_path, file_name))
 
+    def file_exists(self, file_path):
+        result = self.run_command(
+            'test -e {}'.format(file_path), ignore_failure=True)
+        return not result.failed
+
 
 def get_dict_from_yaml(yaml_path):
     with open(yaml_path) as yaml_file:
@@ -186,11 +194,25 @@ def get_dict_from_yaml(yaml_path):
     return yaml_dict
 
 
-def cloudify_is_installed(cloudify_rpm):
+def write_dict_to_yaml_file(content, yaml_path):
+    with open(yaml_path, 'w') as yaml_file:
+        yaml.dump(content, yaml_file)
+
+
+def cloudify_rpm_is_installed(cloudify_rpm):
     proc = run(['rpm', '-qa'])
-    if cloudify_rpm in proc.aggr_stdout.strip():
-        return True
-    return False
+    cloudify_manager_install_pkg_name = run(
+        ['grep', 'cloudify-manager-install'],
+        stdin=proc.aggr_stdout, ignore_failures=True).aggr_stdout.strip()
+    if cloudify_manager_install_pkg_name:
+        if cloudify_manager_install_pkg_name == cloudify_rpm:
+            return True
+        else:
+            raise ClusterInstallError(
+                'Cloudify RPM is already installed with a different version. '
+                'Please uninstall it first.')
+    else:
+        return False
 
 
 def yum_is_present():
