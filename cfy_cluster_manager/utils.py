@@ -88,7 +88,7 @@ class VM(object):
                  username):
         self.username = username
         self.private_ip = private_ip
-        self.public_ip = public_ip
+        self.public_ip = public_ip or private_ip
         self.key_file_path = expanduser(key_file_path)
 
     def _get_connection(self):

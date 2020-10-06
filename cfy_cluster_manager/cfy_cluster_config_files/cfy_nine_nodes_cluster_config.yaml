@@ -1,8 +1,8 @@
-# Your private key local path to connect to all hosts
-key_file_path: ''
+# Your private SSH key local path used to connect to all VMs
+ssh_key_path: ''
 
-# The hosts' username, e.g. centos
-machine_username: ''
+# The VMs' SSH username, e.g. centos
+ssh_user: ''
 
 # Local path to a valid Cloudify license
 cloudify_license_path: ''
@@ -10,11 +10,13 @@ cloudify_license_path: ''
 # Manager RPM to install on the cluster instances
 manager_rpm_download_link: 'http://cloudify-release-eu.s3.amazonaws.com/cloudify/5.1.0/.dev1-release/cloudify-manager-install-5.1.0-.dev1.el7.x86_64.rpm'
 
-# If specified, all the VMs certificates will need to be specified as well
+# If specified, all the VMs' certificates will need to be specified as well
 ca_cert_path: ''
 
 # If using a load-balancer, please provide its IP.
-# This IP will be written the the config.yaml files.
+# This IP will be written to the manager config.yaml files under
+# networks[load_balancer].
+# Remark: The load balancer is not installed during the cluster installation.
 load_balancer_ip: ''
 
 
@@ -83,7 +85,7 @@ existing_vms:
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
 
-# If the credentials are not specified, random ones will be used and written to {{ credentials_file_path }}
+# If the credentials are not specified, random self-generated ones will be used and written to {{ credentials_file_path }}
 credentials:
   manager:
     admin_username: 'admin'

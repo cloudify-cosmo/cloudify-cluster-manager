@@ -380,18 +380,16 @@ def _get_external_db_config(config):
 
 
 def _get_cfy_node(config, node_dict, node_name, validate_connection=True):
-    username = config.get('machine_username')
     cert_path = join(CERTS_DIR, node_name + '_cert.pem')
     key_path = join(CERTS_DIR, node_name + '_key.pem')
     if _using_provided_certificates(config):
         copy(expanduser(node_dict.get('cert_path')), cert_path)
         copy(expanduser(node_dict.get('key_path')), key_path)
 
-    public_ip = node_dict.get('public_ip') or node_dict.get('private_ip')
     new_vm = CfyNode(node_dict.get('private_ip'),
-                     public_ip,
-                     config.get('key_file_path'),
-                     username,
+                     node_dict.get('public_ip'),
+                     config.get('ssh_key_path'),
+                     config.get('ssh_user'),
                      node_name,
                      node_dict.get('hostname'),
                      cert_path,
@@ -565,8 +563,8 @@ def _validate_external_db_config(config, errors_list):
 
 def _validate_config(config):
     errors_list = []
-    _check_path(config, 'key_file_path', errors_list)
-    _check_value_provided(config, 'machine_username', errors_list)
+    _check_path(config, 'ssh_key_path', errors_list)
+    _check_value_provided(config, 'ssh_user', errors_list)
     _check_path(config, 'cloudify_license_path', errors_list)
     _check_value_provided(config, 'manager_rpm_download_link', errors_list)
     _validate_existing_vms(config, errors_list)
@@ -582,35 +580,50 @@ def _handle_cluster_config_file(cluster_config_file_name, output_path):
     template = cluster_config_files_env.get_template(cluster_config_file_name)
     rendered_data = template.render(
         credentials_file_path=CREDENTIALS_FILE_PATH)
-    cluster_config_file_path = join(
-        CLUSTER_CONFIG_FILES_DIR, cluster_config_file_name)
-    with open(cluster_config_file_path, 'w') as cluster_config_file:
-        cluster_config_file.write(rendered_data)
-    copy(cluster_config_file_path, output_path)
+    with open(output_path, 'w') as output_file:
+        output_file.write(rendered_data)
 
 
 def generate_config(output_path,
                     verbose,
                     using_three_nodes,
+                    using_nine_nodes,
                     using_external_db):
     setup_logger(verbose)
     output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
+
+    if (not using_nine_nodes) and (not using_three_nodes):
+        raise ClusterInstallError(
+            'Please specify `--three-nodes` or `--nine-nodes`.')
+
+    if exists(output_path):
+        override_file = input('The path {} already exists, would you like '
+                              'to override it? (yes/no) '.format(output_path))
+        if override_file.lower() not in ('yes', 'y', 'no', 'n'):
+            raise ClusterInstallError('Please respond with a yes or no')
+        if override_file.lower() in ('no', 'n'):
+            logger.info('Please provide a different path to the configuration '
+                        'file using the `--output` flag. Exiting..')
+            exit(1)
+
     if isdir(output_path):
         output_path = join(output_path, CLUSTER_CONFIG_FILE_NAME)
 
-    if using_three_nodes:
+    if using_nine_nodes:
+        if using_external_db:
+            _handle_cluster_config_file(
+                'cfy_nine_nodes_external_db_cluster_config.yaml', output_path)
+        else:
+            _handle_cluster_config_file(
+                'cfy_nine_nodes_cluster_config.yaml', output_path)
+
+    elif using_three_nodes:
         if using_external_db:
             _handle_cluster_config_file(
                 'cfy_three_nodes_external_db_cluster_config.yaml', output_path)
         else:
             _handle_cluster_config_file(
                 'cfy_three_nodes_cluster_config.yaml', output_path)
-
-    elif using_external_db:
-        _handle_cluster_config_file(
-            'cfy_external_db_cluster_config.yaml', output_path)
-    else:
-        _handle_cluster_config_file(CLUSTER_CONFIG_FILE_NAME, output_path)
 
     logger.info('Created the cluster install configuration file in %s',
                 output_path)
@@ -763,11 +776,20 @@ def main():
         help='The local path to save the cluster install configuration file '
              'to. default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
 
-    generate_config_args.add_argument(
+    exclusive_options = generate_config_args.add_mutually_exclusive_group()
+
+    exclusive_options.add_argument(
         '--three-nodes',
         action='store_true',
         default=False,
-        help='Using a three nodes cluster.')
+        help='Using a three nodes cluster')
+
+    exclusive_options.add_argument(
+        '--nine-nodes',
+        action='store_true',
+        default=False,
+        help='Using a nine nodes cluster. In case of using an external DB, '
+             'Only 6 nodes will need to be provided')
 
     generate_config_args.add_argument(
         '--external-db',
@@ -802,7 +824,7 @@ def main():
 
     if args.action == 'generate-config':
         generate_config(args.output, args.verbose, args.three_nodes,
-                        args.external_db)
+                        args.nine_nodes, args.external_db)
 
     elif args.action == 'install':
         install(args.config_path, args.override, args.verbose)
