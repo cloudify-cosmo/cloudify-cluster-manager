@@ -148,7 +148,8 @@ def _prepare_manager_config_files(template,
                                   instances_dict,
                                   credentials,
                                   load_balancer_ip,
-                                  external_db_config):
+                                  external_db_config,
+                                  ldap_configuration):
     logger.info('Preparing Manager config files')
     if external_db_config:
         external_db_config.update({'ssl_client_verification': False,
@@ -165,7 +166,8 @@ def _prepare_manager_config_files(template,
                 instances_dict['rabbitmq']),
             postgresql_cluster={} if external_db_config else
             _get_postgresql_cluster_members(instances_dict['postgresql']),
-            external_db_configuration=external_db_config
+            external_db_configuration=external_db_config,
+            ldap_configuration=ldap_configuration
         )
 
         _create_config_file(rendered_data, node.name)
@@ -177,15 +179,16 @@ def _create_config_file(rendered_data, node_name):
         config_file.write(rendered_data)
 
 
-def _prepare_config_files(instances_dict,
-                          credentials,
-                          load_balancer_ip,
-                          external_db_config):
+def _prepare_config_files(instances_dict, credentials, config):
     os.mkdir(join(CLUSTER_INSTALL_DIR, 'config_files'))
     templates_env = Environment(
         loader=FileSystemLoader(
             join(dirname(__file__), 'config_files_templates')))
+    raw_ldap_configuration = config.get('ldap', {})
+    ldap_configuration = (raw_ldap_configuration if
+                          raw_ldap_configuration.get('server') else None)
 
+    external_db_config = _get_external_db_config(config)
     if not external_db_config:
         _prepare_postgresql_config_files(
             templates_env.get_template('postgresql_config.yaml'),
@@ -201,8 +204,9 @@ def _prepare_config_files(instances_dict,
         templates_env.get_template('manager_config.yaml'),
         instances_dict,
         credentials,
-        load_balancer_ip,
-        external_db_config
+        config.get('load_balancer_ip'),
+        external_db_config,
+        ldap_configuration
     )
 
 
@@ -561,6 +565,21 @@ def _validate_external_db_config(config, errors_list):
     _check_path(external_db_config, 'ca_path', errors_list)
 
 
+def _validate_ldap_certificate_setting(config, errors_list):
+    """Confirm that if using ldaps we have the required ca cert."""
+    ldaps = config['ldap']['server'].startswith('ldaps://')
+    ca_cert = config['ldap']['ca_cert']
+
+    if ldaps and not ca_cert:
+        errors_list.append(
+            'When using ldaps a CA certificate must be provided.')
+    elif ca_cert and not ldaps:
+        errors_list.append(
+            'When not using ldaps a CA certificate must not be provided.')
+    if ca_cert and ldaps:
+        _check_path(config.get('ldap'), 'ca_cert', errors_list)
+
+
 def _validate_config(config):
     errors_list = []
     _check_path(config, 'ssh_key_path', errors_list)
@@ -569,6 +588,7 @@ def _validate_config(config):
     _check_value_provided(config, 'manager_rpm_download_link', errors_list)
     _validate_existing_vms(config, errors_list)
     _validate_external_db_config(config, errors_list)
+    _validate_ldap_certificate_setting(config, errors_list)
 
     if errors_list:
         raise_errors_list(errors_list)
@@ -723,7 +743,6 @@ def install(config_path, override, verbose):
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))
     using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
-    external_db_config = _get_external_db_config(config)
     instances_dict = (_generate_three_nodes_cluster_dict(config)
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
@@ -740,8 +759,7 @@ def install(config_path, override, verbose):
              join(CLUSTER_INSTALL_DIR, 'license.yaml'))
         _install_cloudify_locally(rpm_download_link)
         _handle_certificates(config, instances_dict)
-        _prepare_config_files(instances_dict, credentials, load_balancer_ip,
-                              external_db_config)
+        _prepare_config_files(instances_dict, credentials, config)
 
     _install_instances(instances_dict, using_three_nodes_cluster,
                        rpm_download_link, verbose)
