@@ -599,7 +599,9 @@ def generate_config(output_path,
     if exists(output_path):
         override_file = input('The path {} already exists, would you like '
                               'to override it? (yes/no) '.format(output_path))
-        if override_file.lower() == 'no':
+        if override_file.lower() not in ('yes', 'y', 'no', 'n'):
+            raise ClusterInstallError('Please respond with a yes or no')
+        if override_file.lower() in ('no', 'n'):
             logger.info('Please provide a different path to the configuration '
                         'file using the `--output` flag. Exiting..')
             exit(1)
