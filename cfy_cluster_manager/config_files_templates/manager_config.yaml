@@ -40,11 +40,17 @@ postgresql_client:
   ssl_client_verification: true
   {%-endif %}
 
+{% if ldap_configuration-%}
+restservice:
+  ldap: {{ ldap_configuration }}
+{%-endif %}
+
 validations:
   minimum_required_total_physical_memory_in_mb: 1024
 
 {% if load_balancer_ip-%}
 networks:
+  default: {{ node.private_ip }}
   load_balancer: {{ load_balancer_ip }}
 {%-endif %}
 
