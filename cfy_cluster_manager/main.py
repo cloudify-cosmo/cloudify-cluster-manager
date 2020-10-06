@@ -793,7 +793,7 @@ def main():
         action='store_true',
         default=False,
         help='If specified, any previous installation of Cloudify on the '
-             'instances will e removed'
+             'instances will be removed'
     )
 
     add_verbose_arg(install_args)
