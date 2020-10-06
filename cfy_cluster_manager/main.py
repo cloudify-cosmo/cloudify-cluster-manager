@@ -5,6 +5,7 @@ import shutil
 import string
 import random
 import argparse
+from getpass import getuser
 from traceback import format_exception
 from collections import OrderedDict
 from os.path import (basename, dirname, exists, expanduser, isdir, join,
@@ -42,7 +43,8 @@ CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
 SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
-INITIAL_INSTALL_DIR = '/etc/cloudify/.installed'
+BASE_CFY_DIR = '/etc/cloudify/'
+INITIAL_INSTALL_DIR = join(BASE_CFY_DIR + '.installed')
 
 
 class CfyNode(VM):
@@ -64,7 +66,7 @@ class CfyNode(VM):
         self.type = node_name.split('-')[0]
         self.installed = False
         self.config_path = join(
-            '/etc/cloudify', '{}_config.yaml'.format(node_name))
+            BASE_CFY_DIR, '{}_config.yaml'.format(node_name))
         self.unit_name = SYSTEMD_RUN_UNIT_NAME.format(self.type)
 
 
@@ -241,7 +243,7 @@ def _wait_for_cloudify_current_installation(instance):
             '%s to finish', instance.name)
 
 
-def _rpm_was_installed(instance, rpm_download_link):
+def _rpm_was_installed(instance, rpm_download_link, override=False):
     rpm_name = splitext(basename(rpm_download_link))[0]
     logger.debug(
         'Checking if Cloudify RPM was installed on %s', instance.private_ip)
@@ -250,7 +252,7 @@ def _rpm_was_installed(instance, rpm_download_link):
     if result.failed:
         return False
 
-    if result.stdout.strip() == rpm_name:
+    if result.stdout.strip() == rpm_name or override:
         return True
     else:
         raise ClusterInstallError(
@@ -297,7 +299,7 @@ def _cloudify_was_previously_installed_successfully(instance, verbose):
         instance.run_command(
             'cfy_manager remove -c {config_path} {verbose}'.format(
                 config_path=instance.config_path,
-                verbose='-v' if verbose else ''), use_sudo=True)
+                verbose='-v' if verbose else ''))
         instance.run_command(
             'systemctl reset-failed {}'.format(instance.unit_name),
             use_sudo=True, hide_stdout=True)
@@ -354,10 +356,10 @@ def _install_instances(instances_dict,
                 instance.config_path), use_sudo=True)
 
             install_cmd = (
-                'systemd-run -t --unit {unit_name} cfy_manager install -c '
-                '{config} {verbose}'.format(
+                'systemd-run -t --unit {unit_name} --uid {user_name} '
+                'cfy_manager install -c {config} {verbose}'.format(
                     config=instance.config_path, unit_name=instance.unit_name,
-                    verbose='-v' if verbose else ''))
+                    user_name=getuser(), verbose='-v' if verbose else ''))
 
             instance.run_command(install_cmd, use_sudo=True)
             _verify_cloudify_installed_successfully(instance)
@@ -625,15 +627,45 @@ def _handle_certificates(config, instances_dict):
         copy(external_db_config.get('ca_path'), EXTERNAL_DB_CA_PATH)
 
 
-def _previous_installation(instances_dict, rpm_download_link):
+def _previous_installation(instances_dict, rpm_download_link, override):
     logger.info('Checking for a previous installation')
     first_instance = (
         instances_dict['postgresql'][0] if 'postgresql' in instances_dict
         else instances_dict['rabbitmq'][0])
-    return _rpm_was_installed(first_instance, rpm_download_link)
+    return _rpm_was_installed(first_instance, rpm_download_link, override)
 
 
-def _mark_installed_instances(instances_dict, rpm_download_link, verbose):
+def _remove_cloudify_installation(instance, verbose):
+    instance.run_command(
+        'cfy_manager remove -c {config_path} {verbose}'.format(
+            config_path=instance.config_path, verbose='-v' if verbose else ''))
+
+    if not isdir(INITIAL_INSTALL_DIR):
+        instance.run_command(
+            'yum remove -y cloudify-manager-install', use_sudo=True)
+
+    if instance.type == 'manager':
+        certs_paths_list = [
+            'cloudify_external_cert.pem', 'cloudify_external_key.pem',
+            'cloudify_internal_ca_cert.pem', 'cloudify_external_ca_cert.pem',
+            'cloudify_internal_cert.pem', 'cloudify_internal_key.pem']
+
+        timestamp = time.strftime('%Y%m%d-%H%M%S_')
+        certs_dir_path = join(BASE_CFY_DIR, 'ssl')
+        for cert_path in certs_paths_list:
+            full_path = join(certs_dir_path, cert_path)
+            if instance.file_exists(full_path):
+                new_path = join(BASE_CFY_DIR, timestamp + cert_path)
+                instance.run_command(
+                    'mv {0} {1}'.format(full_path, new_path), use_sudo=True)
+
+    instance.installed = False
+
+
+def _mark_installed_instances(instances_dict,
+                              rpm_download_link,
+                              override,
+                              verbose):
     """Checking which instances were installed in the previous installation.
 
     This function goes over each instance in the ordered instances dictionary,
@@ -648,20 +680,23 @@ def _mark_installed_instances(instances_dict, rpm_download_link, verbose):
     for instance_type, instances_list in instances_dict.items():
         for instance in instances_list:
             logger.info('Checking if %s was installed', instance.name)
-            if _rpm_was_installed(instance, rpm_download_link):
+            if _rpm_was_installed(instance, rpm_download_link, override):
                 instance.installed = \
                     _cloudify_was_previously_installed_successfully(
                         instance, verbose)
                 if instance.installed:
                     logger.info('%s was previously installed successfully',
                                 instance.name)
+                    if override:
+                        logger.info('Removing Cloudify from %s', instance.name)
+                        _remove_cloudify_installation(instance, verbose)
                 else:
                     return
             else:
                 return
 
 
-def install(config_path, verbose):
+def install(config_path, override, verbose):
     setup_logger(verbose)
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
@@ -680,10 +715,13 @@ def install(config_path, verbose):
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
 
-    if _previous_installation(instances_dict, rpm_download_link):
+    previous_installation = _previous_installation(
+        instances_dict, rpm_download_link, override)
+    if previous_installation:
         logger.info('Cloudify cluster was previously installed')
-        _mark_installed_instances(instances_dict, rpm_download_link, verbose)
-    else:
+        _mark_installed_instances(instances_dict, rpm_download_link, override,
+                                  verbose)
+    if (not previous_installation) or override:
         _create_cluster_install_directory()
         copy(config.get('cloudify_license_path'),
              join(CLUSTER_INSTALL_DIR, 'license.yaml'))
@@ -750,6 +788,14 @@ def main():
         help='The completed cluster install configuration file. '
              'default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
 
+    install_args.add_argument(
+        '--override',
+        action='store_true',
+        default=False,
+        help='If specified, any previous installation of Cloudify on the '
+             'instances will be removed'
+    )
+
     add_verbose_arg(install_args)
 
     args = parser.parse_args()
@@ -759,7 +805,7 @@ def main():
                         args.external_db)
 
     elif args.action == 'install':
-        install(args.config_path, args.verbose)
+        install(args.config_path, args.override, args.verbose)
 
     else:
         raise RuntimeError('Invalid action specified in parser.')
