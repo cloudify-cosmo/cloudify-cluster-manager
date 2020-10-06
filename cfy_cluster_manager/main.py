@@ -106,16 +106,21 @@ def _generate_certs(instances_dict):
 
 def _get_postgresql_cluster_members(postgresql_instances):
     return {
-        postgresql_instances[j].name:
-            {'ip': postgresql_instances[j].private_ip}
-        for j in range(len(postgresql_instances))}
+        postgresql_instance.name:
+            {'ip': postgresql_instance.private_ip}
+        for postgresql_instance in postgresql_instances
+    }
 
 
-def _get_rabbitmq_cluster_members(rabbitmq_instances):
+def _get_rabbitmq_cluster_members(rabbitmq_instances, load_balance_ip):
     return {
-        rabbitmq_instances[j].name: {
-            'networks': {'default': rabbitmq_instances[j].private_ip}
-        } for j in range(len(rabbitmq_instances))}
+        rabbitmq_instance.name: {
+            'networks':
+                ({'default': rabbitmq_instance.private_ip,
+                 'load_balancer': load_balance_ip} if load_balance_ip else
+                 {'default': rabbitmq_instance.private_ip})
+        } for rabbitmq_instance in rabbitmq_instances
+    }
 
 
 def _prepare_postgresql_config_files(template,
@@ -131,16 +136,21 @@ def _prepare_postgresql_config_files(template,
         _create_config_file(rendered_data, node.name)
 
 
-def _prepare_rabbitmq_config_files(template, rabbitmq_instances, credentials):
+def _prepare_rabbitmq_config_files(template,
+                                   rabbitmq_instances,
+                                   credentials,
+                                   load_balancer_ip):
     logger.info('Preparing RabbitMQ config files')
-    rabbitmq_cluster = _get_rabbitmq_cluster_members(rabbitmq_instances)
+    rabbitmq_cluster = _get_rabbitmq_cluster_members(
+        rabbitmq_instances, load_balancer_ip)
     for i, node in enumerate(rabbitmq_instances):
         join_cluster = rabbitmq_instances[0].name if i > 0 else None
         rendered_data = template.render(node=node,
                                         creds=credentials,
                                         ca_path=CA_PATH,
                                         join_cluster=join_cluster,
-                                        rabbitmq_cluster=rabbitmq_cluster)
+                                        rabbitmq_cluster=rabbitmq_cluster,
+                                        load_balancer_ip=load_balancer_ip)
         _create_config_file(rendered_data, node.name)
 
 
@@ -163,7 +173,7 @@ def _prepare_manager_config_files(template,
             license_path=join(CLUSTER_INSTALL_DIR, 'license.yaml'),
             load_balancer_ip=load_balancer_ip,
             rabbitmq_cluster=_get_rabbitmq_cluster_members(
-                instances_dict['rabbitmq']),
+                instances_dict['rabbitmq'], load_balancer_ip),
             postgresql_cluster={} if external_db_config else
             _get_postgresql_cluster_members(instances_dict['postgresql']),
             external_db_configuration=external_db_config,
@@ -198,7 +208,8 @@ def _prepare_config_files(instances_dict, credentials, config):
     _prepare_rabbitmq_config_files(
         templates_env.get_template('rabbitmq_config.yaml'),
         instances_dict['rabbitmq'],
-        credentials)
+        credentials,
+        config.get('load_balancer_ip'))
 
     _prepare_manager_config_files(
         templates_env.get_template('manager_config.yaml'),
@@ -729,17 +740,21 @@ def _mark_installed_instances(instances_dict,
                 return
 
 
-def install(config_path, override, verbose):
+def install(config_path, override, only_validate, verbose):
     setup_logger(verbose)
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
-    logger.info('Installing a Cloudify cluster')
+    logger.info('Validating configuration file' if only_validate else
+                'Installing a Cloudify cluster')
     start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
     config = get_dict_from_yaml(config_path)
     _validate_config(config)
-    load_balancer_ip = config.get('load_balancer_ip')
+    if only_validate:
+        logger.info('The configuration file at %s was validated '
+                    'successfully.', config_path)
+        return
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))
     using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
@@ -764,7 +779,10 @@ def install(config_path, override, verbose):
     _install_instances(instances_dict, using_three_nodes_cluster,
                        rpm_download_link, verbose)
     _log_managers_connection_strings(instances_dict['manager'])
-    logger.info('The credentials file was saved to %s', CREDENTIALS_FILE_PATH)
+    logger.warning('The credentials file was saved to %s. '
+                   'The credentials are written there in plain text. '
+                   'Please remove it after reviewing it.',
+                   CREDENTIALS_FILE_PATH)
     _print_successful_installation_message(start_time)
 
 
@@ -773,7 +791,7 @@ def add_verbose_arg(parser):
         '-v', '--verbose',
         action='store_true',
         default=False,
-        help='Show verbose output.'
+        help='Show verbose output'
     )
 
 
@@ -813,14 +831,14 @@ def main():
         '--external-db',
         action='store_true',
         default=False,
-        help='Using an external DB.')
+        help='Using an external DB')
 
     add_verbose_arg(generate_config_args)
 
     install_args = subparsers.add_parser(
         'install',
         help='Install a Cloudify cluster based on the cluster install '
-             'configuration file.')
+             'configuration file')
 
     install_args.add_argument(
         '--config-path',
@@ -836,6 +854,13 @@ def main():
              'instances will be removed'
     )
 
+    install_args.add_argument(
+        '--validate',
+        action='store_true',
+        default=False,
+        help='Validate the provided configuration file'
+    )
+
     add_verbose_arg(install_args)
 
     args = parser.parse_args()
@@ -845,7 +870,7 @@ def main():
                         args.nine_nodes, args.external_db)
 
     elif args.action == 'install':
-        install(args.config_path, args.override, args.verbose)
+        install(args.config_path, args.override, args.validate, args.verbose)
 
     else:
         raise RuntimeError('Invalid action specified in parser.')
