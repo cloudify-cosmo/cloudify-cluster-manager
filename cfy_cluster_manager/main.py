@@ -740,20 +740,10 @@ def _mark_installed_instances(instances_dict,
                 return
 
 
-def _install_haveged(install_haveged):
-    if not install_haveged:
-        return
-    logger.info('Installing Haveged')
-    sudo(['yum', 'install', '-y', 'epel-release'])
-    sudo(['yum', 'install', '-y', 'haveged'])
-    sudo(['systemctl', 'start', 'haveged'])
-
-
-def install(config_path, override, install_haveged, only_validate, verbose):
+def install(config_path, override, only_validate, verbose):
     setup_logger(verbose)
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
-    _install_haveged(install_haveged)
 
     logger.info('Validating configuration file' if only_validate else
                 'Installing a Cloudify cluster')
@@ -865,15 +855,6 @@ def main():
     )
 
     install_args.add_argument(
-        '--install-haveged',
-        action='store_true',
-        default=False,
-        help='Set this flag to yum install the haveged if it is not present. '
-             'Haveged is used in order to generate entropy to '
-             'avoid hanging executions'
-    )
-
-    install_args.add_argument(
         '--validate',
         action='store_true',
         default=False,
@@ -889,8 +870,7 @@ def main():
                         args.nine_nodes, args.external_db)
 
     elif args.action == 'install':
-        install(args.config_path, args.override, args.install_haveged,
-                args.validate, args.verbose)
+        install(args.config_path, args.override, args.validate, args.verbose)
 
     else:
         raise RuntimeError('Invalid action specified in parser.')
