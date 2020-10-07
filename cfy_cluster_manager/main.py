@@ -560,40 +560,41 @@ def _check_value_provided(dictionary, key, errors_list, vm_name=None):
     return True
 
 
+def _validate_config_path(vm_name, config_path, errors_list):
+    expanded_path = expanduser(config_path)
+    if exists(expanded_path):
+        return expanded_path
+    else:
+        errors_list.append('The config path {0} for {1} does not '
+                           'exist.'.format(expanded_path, vm_name))
+
+
 def _validate_config_paths(existing_vms_list, using_three_nodes, errors_list):
-    # Since Python2 doesn't have a nonlocal variable, we need to use a
-    # dictionary that can be reached from the inner funciton
-    outer_dict = {'using_config_paths': False,
-                  'config_path_error_added': False}
+    if using_three_nodes:
+        config_paths = [config_path for vm_dict in existing_vms_list.values()
+                        for config_path in vm_dict['config_path'].values()]
+    else:
+        config_paths = [vm_dict.get('config_path') for vm_dict in
+                        existing_vms_list.values()]
 
-    def validate_config_path():
-        if config_path:
-            expanded_path = expanduser(config_path)
-            if exists(expanded_path):
-                outer_dict['using_config_paths'] = True
-                if using_three_nodes:
-                    vm_dict['config_path'][config_name] = expanded_path
-                else:
-                    vm_dict['config_path'] = expanded_path
+    if all(config_paths):
+        for vm_name, vm_dict in existing_vms_list.items():
+            if using_three_nodes:
+                for config_name, config_path in vm_dict['config_path'].items():
+                    vm_dict['config_path'][config_name] = \
+                        _validate_config_path(vm_name,
+                                              config_path,
+                                              errors_list)
+
             else:
-                errors_list.append(
-                    'The config path {0} for {1} does not '
-                    'exist.'.format(expanded_path, vm_name))
-        else:
-            if (outer_dict['using_config_paths']
-                    and not outer_dict['config_path_error_added']):
-                errors_list.append(
-                    'You must provide the config.yaml file for '
-                    'all instances or none of them.')
-                outer_dict['config_path_error_added'] = True
+                config_path = vm_dict.get('config_path')
+                vm_dict['config_path'] = \
+                    _validate_config_path(vm_name, config_path, errors_list)
 
-    for vm_name, vm_dict in existing_vms_list.items():
-        if using_three_nodes:
-            for config_name, config_path in vm_dict['config_path'].items():
-                validate_config_path()
-        else:
-            config_path = vm_dict.get('config_path')
-            validate_config_path()
+    elif any(config_paths):
+        errors_list.append('You must provide the config.yaml file for '
+                           'all instances or none of them.')
+
 
 
 def _validate_existing_vms(config, using_three_nodes, errors_list):
