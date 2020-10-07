@@ -48,23 +48,38 @@ existing_vms:
     node-1:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      # Optional. In case you wish to use your own config.yaml files.
+      config_path:
+        manager_config_path: ''
+        postgresql_config_path: ''
+        rabbitmq_config_path: ''
 
     node-2:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      # Optional. In case you wish to use your own config.yaml files.
+      config_path:
+        manager_config_path: ''
+        postgresql_config_path: ''
+        rabbitmq_config_path: ''
 
     node-3:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      # Optional. In case you wish to use your own config.yaml files.
+      config_path:
+        manager_config_path: ''
+        postgresql_config_path: ''
+        rabbitmq_config_path: ''
 
 
 # If the credentials are not specified, random self-generated ones will be used and written to {{ credentials_file_path }}

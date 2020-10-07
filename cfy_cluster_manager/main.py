@@ -56,7 +56,8 @@ class CfyNode(VM):
                  node_name,
                  hostname,
                  cert_path,
-                 key_path):
+                 key_path,
+                 config_file_path):
         super(CfyNode, self).__init__(private_ip, public_ip,
                                       key_file_path, username)
         self.name = node_name
@@ -65,6 +66,7 @@ class CfyNode(VM):
         self.key_path = key_path
         self.type = node_name.split('-')[0]
         self.installed = False
+        self.provided_config_path = config_file_path
         self.config_path = join(
             BASE_CFY_DIR, '{}_config.yaml'.format(node_name))
         self.unit_name = SYSTEMD_RUN_UNIT_NAME.format(self.type)
@@ -129,11 +131,14 @@ def _prepare_postgresql_config_files(template,
     logger.info('Preparing PostgreSQL config files')
     postgresql_cluster = _get_postgresql_cluster_members(postgresql_instances)
     for node in postgresql_instances:
+        if node.provided_config_path:
+            _create_config_file(node)
+            continue
         rendered_data = template.render(node=node,
                                         creds=credentials,
                                         ca_path=CA_PATH,
                                         postgresql_cluster=postgresql_cluster)
-        _create_config_file(rendered_data, node.name)
+        _create_config_file(node, rendered_data)
 
 
 def _prepare_rabbitmq_config_files(template,
@@ -144,6 +149,9 @@ def _prepare_rabbitmq_config_files(template,
     rabbitmq_cluster = _get_rabbitmq_cluster_members(
         rabbitmq_instances, load_balancer_ip)
     for i, node in enumerate(rabbitmq_instances):
+        if node.provided_config_path:
+            _create_config_file(node)
+            continue
         join_cluster = rabbitmq_instances[0].name if i > 0 else None
         rendered_data = template.render(node=node,
                                         creds=credentials,
@@ -151,7 +159,7 @@ def _prepare_rabbitmq_config_files(template,
                                         join_cluster=join_cluster,
                                         rabbitmq_cluster=rabbitmq_cluster,
                                         load_balancer_ip=load_balancer_ip)
-        _create_config_file(rendered_data, node.name)
+        _create_config_file(node, rendered_data)
 
 
 def _prepare_manager_config_files(template,
@@ -166,6 +174,9 @@ def _prepare_manager_config_files(template,
                                    'ca_path': EXTERNAL_DB_CA_PATH})
 
     for node in instances_dict['manager']:
+        if node.provided_config_path:
+            _create_config_file(node)
+            continue
         rendered_data = template.render(
             node=node,
             creds=credentials,
@@ -180,13 +191,16 @@ def _prepare_manager_config_files(template,
             ldap_configuration=ldap_configuration
         )
 
-        _create_config_file(rendered_data, node.name)
+        _create_config_file(node, rendered_data)
 
 
-def _create_config_file(rendered_data, node_name):
-    config_path = join(CONFIG_FILES_DIR, '{0}_config.yaml'.format(node_name))
-    with open(config_path, 'w') as config_file:
-        config_file.write(rendered_data)
+def _create_config_file(node, rendered_data=None):
+    config_path = join(CONFIG_FILES_DIR, '{0}_config.yaml'.format(node.name))
+    if rendered_data:
+        with open(config_path, 'w') as config_file:
+            config_file.write(rendered_data)
+    else:
+        copy(node.provided_config_path, config_path)
 
 
 def _prepare_config_files(instances_dict, credentials, config):
@@ -394,7 +408,8 @@ def _get_external_db_config(config):
     return config.get('external_db_configuration')
 
 
-def _get_cfy_node(config, node_dict, node_name, validate_connection=True):
+def _get_cfy_node(config, node_dict, node_name, config_path,
+                  validate_connection=True):
     cert_path = join(CERTS_DIR, node_name + '_cert.pem')
     key_path = join(CERTS_DIR, node_name + '_key.pem')
     if _using_provided_certificates(config):
@@ -408,7 +423,8 @@ def _get_cfy_node(config, node_dict, node_name, validate_connection=True):
                      node_name,
                      node_dict.get('hostname'),
                      cert_path,
-                     key_path)
+                     key_path,
+                     config_path)
     if validate_connection:
         logger.debug('Testing connection to %s', new_vm.private_ip)
         new_vm.test_connection()
@@ -444,6 +460,8 @@ def _generate_three_nodes_cluster_dict(config):
             new_vm = _get_cfy_node(config,
                                    node_dict,
                                    node_name=(node_type + '-' + str(i + 1)),
+                                   config_path=node_dict['config_path'].get(
+                                       node_type + '_config_path'),
                                    validate_connection=validate_connection)
             instances_dict[node_type].append(new_vm)
         validate_connection = False
@@ -453,7 +471,8 @@ def _generate_three_nodes_cluster_dict(config):
 def _generate_general_cluster_dict(config):
     instances_dict = _get_instances_ordered_dict(config)
     for node_name, node_dict in config.get('existing_vms').items():
-        new_vm = _get_cfy_node(config, node_dict, node_name)
+        new_vm = _get_cfy_node(config, node_dict, node_name,
+                               node_dict.get('config_path'))
         instances_dict[new_vm.type].append(new_vm)
 
     _sort_instances_dict(instances_dict)
@@ -541,10 +560,48 @@ def _check_value_provided(dictionary, key, errors_list, vm_name=None):
     return True
 
 
-def _validate_existing_vms(config, errors_list):
+def _validate_config_path(vm_name, config_path, errors_list):
+    expanded_path = expanduser(config_path)
+    if exists(expanded_path):
+        return expanded_path
+    else:
+        errors_list.append('The config path {0} for {1} does not '
+                           'exist.'.format(expanded_path, vm_name))
+
+
+def _validate_config_paths(existing_vms_list, using_three_nodes, errors_list):
+    if using_three_nodes:
+        config_paths = [config_path for vm_dict in existing_vms_list.values()
+                        for config_path in vm_dict['config_path'].values()]
+    else:
+        config_paths = [vm_dict.get('config_path') for vm_dict in
+                        existing_vms_list.values()]
+
+    if all(config_paths):
+        for vm_name, vm_dict in existing_vms_list.items():
+            if using_three_nodes:
+                for config_name, config_path in vm_dict['config_path'].items():
+                    vm_dict['config_path'][config_name] = \
+                        _validate_config_path(vm_name,
+                                              config_path,
+                                              errors_list)
+
+            else:
+                config_path = vm_dict.get('config_path')
+                vm_dict['config_path'] = \
+                    _validate_config_path(vm_name, config_path, errors_list)
+
+    elif any(config_paths):
+        errors_list.append('You must provide the config.yaml file for '
+                           'all instances or none of them.')
+
+
+
+def _validate_existing_vms(config, using_three_nodes, errors_list):
     existing_vms_list = config.get('existing_vms')
     ca_path_exists = (_using_provided_certificates(config) and
                       _check_path(config, 'ca_cert_path', errors_list))
+    _validate_config_paths(existing_vms_list, using_three_nodes, errors_list)
     for vm_name, vm_dict in existing_vms_list.items():
         logger.info('Validating %s', vm_name)
         if not vm_dict.get('private_ip'):
@@ -591,13 +648,13 @@ def _validate_ldap_certificate_setting(config, errors_list):
         _check_path(config.get('ldap'), 'ca_cert', errors_list)
 
 
-def _validate_config(config):
+def _validate_config(config, using_three_nodes_cluster):
     errors_list = []
     _check_path(config, 'ssh_key_path', errors_list)
     _check_value_provided(config, 'ssh_user', errors_list)
     _check_path(config, 'cloudify_license_path', errors_list)
     _check_value_provided(config, 'manager_rpm_download_link', errors_list)
-    _validate_existing_vms(config, errors_list)
+    _validate_existing_vms(config, using_three_nodes_cluster, errors_list)
     _validate_external_db_config(config, errors_list)
     _validate_ldap_certificate_setting(config, errors_list)
 
@@ -750,14 +807,14 @@ def install(config_path, override, only_validate, verbose):
     start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
     config = get_dict_from_yaml(config_path)
-    _validate_config(config)
+    using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
+    _validate_config(config, using_three_nodes_cluster)
     if only_validate:
         logger.info('The configuration file at %s was validated '
                     'successfully.', config_path)
         return
     rpm_download_link = config.get('manager_rpm_download_link')
     credentials = _handle_credentials(config.get('credentials'))
-    using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
     instances_dict = (_generate_three_nodes_cluster_dict(config)
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))

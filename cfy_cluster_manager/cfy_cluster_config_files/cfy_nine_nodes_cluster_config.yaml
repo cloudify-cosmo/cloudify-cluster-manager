@@ -48,65 +48,73 @@ existing_vms:
     manager-1:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     manager-2:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     manager-3:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     postgresql-1:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     postgresql-2:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
 
     postgresql-3:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     rabbitmq-1:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     rabbitmq-2:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
     rabbitmq-3:
       private_ip: ''
       public_ip: ''  # If not specified, will default to the private-ip
-      hostname: ''   # As specified in the certificate (if specified). Optional
+      hostname: ''   # Optional. As specified in the certificate (if specified)
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
+      config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
 
 
 # If the credentials are not specified, random self-generated ones will be used and written to {{ credentials_file_path }}
