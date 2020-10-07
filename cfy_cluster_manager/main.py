@@ -11,6 +11,7 @@ from collections import OrderedDict
 from os.path import (basename, dirname, exists, expanduser, isdir, join,
                      splitext)
 
+import pkg_resources
 from jinja2 import Environment, FileSystemLoader
 
 from .logger import get_cfy_cluster_manager_logger, setup_logger
@@ -38,7 +39,8 @@ CA_PATH = join(CERTS_DIR, 'ca.pem')
 EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
 
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
-CLUSTER_CONFIG_FILES_DIR = join(dirname(__file__), 'cfy_cluster_config_files')
+CLUSTER_CONFIG_FILES_DIR = pkg_resources.resource_filename(
+    'cfy_cluster_manager', 'cfy_cluster_config_files')
 CLUSTER_CONFIG_FILE_NAME = 'cfy_cluster_config.yaml'
 CLUSTER_INSTALL_CONFIG_PATH = join(os.getcwd(), CLUSTER_CONFIG_FILE_NAME)
 
@@ -207,7 +209,8 @@ def _prepare_config_files(instances_dict, credentials, config):
     os.mkdir(join(CLUSTER_INSTALL_DIR, 'config_files'))
     templates_env = Environment(
         loader=FileSystemLoader(
-            join(dirname(__file__), 'config_files_templates')))
+            pkg_resources.resource_filename(
+                'cfy_cluster_manager', 'config_files_templates')))
     raw_ldap_configuration = config.get('ldap', {})
     ldap_configuration = (raw_ldap_configuration if
                           raw_ldap_configuration.get('server') else None)

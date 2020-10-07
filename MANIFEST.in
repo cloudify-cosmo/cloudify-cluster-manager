@@ -1,0 +1,2 @@
+include cfy_cluster_manager/cfy_cluster_config_files/*.yaml
+include cfy_cluster_manager/config_files_templates/*.yaml
