@@ -22,6 +22,7 @@ setup(
     author='Cloudify',
     author_email='cosmo-admin@cloudify.co',
     packages=['cfy_cluster_manager'],
+    include_package_data=True,
     license='LICENSE',
     description="Install a Cloudify cluster",
     entry_points={
