@@ -123,7 +123,7 @@ do so by specifying their path as the value of the `config_path` in each one of 
 
 * Otherwise, preconfigured config.yaml files will be generated and used automatically. 
     
-### Credentials
+#### Credentials
 * If you wish to use your own credentials, you can specify them in the `credentials` section.
 
 * Unfilled credentials will be generated and used by the code. The generated credentials 
