@@ -8,8 +8,7 @@ import argparse
 from getpass import getuser
 from traceback import format_exception
 from collections import OrderedDict
-from os.path import (basename, dirname, exists, expanduser, isdir, join,
-                     splitext)
+from os.path import basename, exists, expanduser, isdir, join, splitext
 
 import pkg_resources
 from jinja2 import Environment, FileSystemLoader
@@ -597,7 +596,6 @@ def _validate_config_paths(existing_vms_list, using_three_nodes, errors_list):
     elif any(config_paths):
         errors_list.append('You must provide the config.yaml file for '
                            'all instances or none of them.')
-
 
 
 def _validate_existing_vms(config, using_three_nodes, errors_list):
