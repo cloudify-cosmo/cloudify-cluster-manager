@@ -24,7 +24,7 @@ def test_generate_three_nodes_config(using_external_db):
     config_name = ('cfy_three_nodes_external_db_cluster_config.yaml'
                    if using_external_db else
                    'cfy_three_nodes_cluster_config.yaml')
-    _assert_same_config_contentents(outfile_path, config_name)
+    _assert_same_config_contents(outfile_path, config_name)
     os.remove(outfile_path)
 
 
@@ -38,7 +38,7 @@ def test_generate_nine_nodes_config(using_external_db):
     config_name = ('cfy_nine_nodes_external_db_cluster_config.yaml'
                    if using_external_db else
                    'cfy_nine_nodes_cluster_config.yaml')
-    _assert_same_config_contentents(outfile_path, config_name)
+    _assert_same_config_contents(outfile_path, config_name)
     os.remove(outfile_path)
 
 
@@ -49,7 +49,7 @@ def test_fail_three_and_nine_nodes_not_supplied():
                         using_external_db=False)
 
 
-def _assert_same_config_contentents(output_path, config_name):
+def _assert_same_config_contents(output_path, config_name):
     """Assert the output file is the same as the config file."""
     with open(join(CONFIG_FILES_PATH, config_name)) as config_file:
         config_dict = yaml.load(config_file, yaml.Loader)
