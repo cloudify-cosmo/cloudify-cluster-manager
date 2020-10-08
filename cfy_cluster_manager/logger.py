@@ -2,7 +2,6 @@ import os
 import sys
 import logging
 
-
 FORMAT_MSG = '%(name)s - %(levelname)s - %(message)s'
 
 

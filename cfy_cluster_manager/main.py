@@ -8,8 +8,7 @@ import argparse
 from getpass import getuser
 from traceback import format_exception
 from collections import OrderedDict
-from os.path import (basename, dirname, exists, expanduser, isdir, join,
-                     splitext)
+from os.path import basename, exists, expanduser, isdir, join, splitext
 
 import pkg_resources
 from jinja2 import Environment, FileSystemLoader
@@ -599,7 +598,6 @@ def _validate_config_paths(existing_vms_list, using_three_nodes, errors_list):
                            'all instances or none of them.')
 
 
-
 def _validate_existing_vms(config, using_three_nodes, errors_list):
     existing_vms_list = config.get('existing_vms')
     ca_path_exists = (_using_provided_certificates(config) and
@@ -676,11 +674,9 @@ def _handle_cluster_config_file(cluster_config_file_name, output_path):
 
 
 def generate_config(output_path,
-                    verbose,
                     using_three_nodes,
                     using_nine_nodes,
                     using_external_db):
-    setup_logger(verbose)
     output_path = output_path or CLUSTER_INSTALL_CONFIG_PATH
 
     if (not using_nine_nodes) and (not using_three_nodes):
@@ -801,7 +797,6 @@ def _mark_installed_instances(instances_dict,
 
 
 def install(config_path, override, only_validate, verbose):
-    setup_logger(verbose)
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
@@ -925,9 +920,11 @@ def main():
 
     args = parser.parse_args()
 
+    setup_logger(args.verbose)
+
     if args.action == 'generate-config':
-        generate_config(args.output, args.verbose, args.three_nodes,
-                        args.nine_nodes, args.external_db)
+        generate_config(args.output, args.three_nodes, args.nine_nodes,
+                        args.external_db)
 
     elif args.action == 'install':
         install(args.config_path, args.override, args.validate, args.verbose)
