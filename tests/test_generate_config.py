@@ -1,4 +1,3 @@
-import os
 import pkg_resources
 from os.path import join
 
@@ -22,7 +21,6 @@ def test_generate_three_nodes_config(using_external_db, tmp_path):
                    if using_external_db else
                    'cfy_three_nodes_cluster_config.yaml')
     _assert_same_config_contents(outfile_path, config_name)
-    os.remove(outfile_path)
 
 
 @pytest.mark.parametrize('using_external_db', [True, False])
@@ -35,7 +33,6 @@ def test_generate_nine_nodes_config(using_external_db, tmp_path):
                    if using_external_db else
                    'cfy_nine_nodes_cluster_config.yaml')
     _assert_same_config_contents(outfile_path, config_name)
-    os.remove(outfile_path)
 
 
 def test_fail_three_and_nine_nodes_not_supplied():
