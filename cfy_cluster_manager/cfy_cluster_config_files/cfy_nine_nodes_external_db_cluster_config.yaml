@@ -10,7 +10,7 @@ cloudify_license_path: ''
 # Manager RPM to install on the cluster instances
 manager_rpm_download_link: 'http://cloudify-release-eu.s3.amazonaws.com/cloudify/5.1.0/.dev1-release/cloudify-manager-install-5.1.0-.dev1.el7.x86_64.rpm'
 
-
+# This section is only relevant if using LDAP
 ldap:
   # This should include the protocol and port,
   # e.g. ldap://192.0.2.1:389 or ldaps://192.0.2.45:636
