@@ -3,10 +3,10 @@ import tempfile
 import pkg_resources
 from os.path import join
 
+import mock
 import yaml
 import pytest
 
-import cfy_cluster_manager
 from cfy_cluster_manager.main import generate_config
 from cfy_cluster_manager.utils import ClusterInstallError
 
@@ -17,10 +17,10 @@ CONFIG_FILES_PATH = pkg_resources.resource_filename(
 @pytest.mark.parametrize('using_external_db', [True, False])
 def test_generate_three_nodes_config(using_external_db):
     outfile_path = tempfile.mkstemp()[1]
-    cfy_cluster_manager.main.input = lambda _: 'yes'
-    generate_config(output_path=outfile_path, verbose=False,
-                    using_three_nodes=True, using_nine_nodes=False,
-                    using_external_db=using_external_db)
+    with mock.patch('cfy_cluster_manager.main.input', return_value='yes'):
+        generate_config(output_path=outfile_path, verbose=False,
+                        using_three_nodes=True, using_nine_nodes=False,
+                        using_external_db=using_external_db)
     config_name = ('cfy_three_nodes_external_db_cluster_config.yaml'
                    if using_external_db else
                    'cfy_three_nodes_cluster_config.yaml')
@@ -31,10 +31,10 @@ def test_generate_three_nodes_config(using_external_db):
 @pytest.mark.parametrize('using_external_db', [True, False])
 def test_generate_nine_nodes_config(using_external_db):
     outfile_path = tempfile.mkstemp()[1]
-    cfy_cluster_manager.main.input = lambda _: 'yes'
-    generate_config(output_path=outfile_path, verbose=True,
-                    using_three_nodes=False, using_nine_nodes=True,
-                    using_external_db=using_external_db)
+    with mock.patch('cfy_cluster_manager.main.input', return_value='yes'):
+        generate_config(output_path=outfile_path, verbose=True,
+                        using_three_nodes=False, using_nine_nodes=True,
+                        using_external_db=using_external_db)
     config_name = ('cfy_nine_nodes_external_db_cluster_config.yaml'
                    if using_external_db else
                    'cfy_nine_nodes_cluster_config.yaml')
@@ -58,7 +58,3 @@ def _assert_same_config_contentents(output_path, config_name):
     err_msg = ('The output file {0} is not the same as the config file '
                '{1}'.format(output_path, config_name))
     assert config_dict == output_dict, err_msg
-
-
-def teardown_method(self, method):
-    generate_config.input = input
