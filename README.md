@@ -23,6 +23,9 @@ environment in advance. The code supports all cloud providers and the following 
 * Six VMs with an external DB. 
 * Three VMs with an external DB.
 
+Please follow the [prerequisites and sizing guidelines on Cloudify documentation](https://docs.cloudify.co/latest/install_maintain/installation/prerequisites/#cloudify-cluster)
+for further instructions.
+
 ---
 **NOTE**
 1. The code currently works only with CentOS or RHEL OS.
