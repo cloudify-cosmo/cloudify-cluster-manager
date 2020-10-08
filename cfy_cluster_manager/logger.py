@@ -2,16 +2,10 @@ import os
 import sys
 import logging
 
-
 FORMAT_MSG = '%(name)s - %(levelname)s - %(message)s'
-
-logging_initialized = False
 
 
 def setup_logger(verbose):
-    global logging_initialized
-    if logging_initialized:
-        return
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
@@ -32,8 +26,6 @@ def setup_logger(verbose):
 
     logger.addHandler(out_sh)
     logger.addHandler(fh)
-
-    logging_initialized = True
 
 
 def get_cfy_cluster_manager_logger():

@@ -1,9 +1,7 @@
 import os
-import tempfile
 import pkg_resources
 from os.path import join
 
-import mock
 import yaml
 import pytest
 
@@ -15,12 +13,11 @@ CONFIG_FILES_PATH = pkg_resources.resource_filename(
 
 
 @pytest.mark.parametrize('using_external_db', [True, False])
-def test_generate_three_nodes_config(using_external_db):
-    outfile_path = tempfile.mkstemp()[1]
-    with mock.patch('cfy_cluster_manager.main.input', return_value='yes'):
-        generate_config(output_path=outfile_path, verbose=False,
-                        using_three_nodes=True, using_nine_nodes=False,
-                        using_external_db=using_external_db)
+def test_generate_three_nodes_config(using_external_db, tmp_path):
+    outfile_path = str(tmp_path / 'three_nodes_config.yaml')
+    generate_config(output_path=outfile_path, using_three_nodes=True,
+                    using_nine_nodes=False,
+                    using_external_db=using_external_db)
     config_name = ('cfy_three_nodes_external_db_cluster_config.yaml'
                    if using_external_db else
                    'cfy_three_nodes_cluster_config.yaml')
@@ -29,12 +26,11 @@ def test_generate_three_nodes_config(using_external_db):
 
 
 @pytest.mark.parametrize('using_external_db', [True, False])
-def test_generate_nine_nodes_config(using_external_db):
-    outfile_path = tempfile.mkstemp()[1]
-    with mock.patch('cfy_cluster_manager.main.input', return_value='yes'):
-        generate_config(output_path=outfile_path, verbose=True,
-                        using_three_nodes=False, using_nine_nodes=True,
-                        using_external_db=using_external_db)
+def test_generate_nine_nodes_config(using_external_db, tmp_path):
+    outfile_path = str(tmp_path / 'nine_nodes_config.yaml')
+    generate_config(output_path=outfile_path, using_three_nodes=False,
+                    using_nine_nodes=True,
+                    using_external_db=using_external_db)
     config_name = ('cfy_nine_nodes_external_db_cluster_config.yaml'
                    if using_external_db else
                    'cfy_nine_nodes_cluster_config.yaml')
@@ -44,9 +40,8 @@ def test_generate_nine_nodes_config(using_external_db):
 
 def test_fail_three_and_nine_nodes_not_supplied():
     with pytest.raises(ClusterInstallError):
-        generate_config(output_path=None, verbose=True,
-                        using_three_nodes=False, using_nine_nodes=False,
-                        using_external_db=False)
+        generate_config(output_path=None, using_three_nodes=False,
+                        using_nine_nodes=False, using_external_db=False)
 
 
 def _assert_same_config_contents(output_path, config_name):
