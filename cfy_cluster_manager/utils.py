@@ -135,11 +135,10 @@ class VM(object):
 
     def put_file(self, local_path, remote_path):
         if not isfile(local_path):
-            raise ClusterInstallError(
-                '{} is not a file'.format(local_path))
+            raise ClusterInstallError('{} is not a file'.format(local_path))
 
         with self._get_connection() as connection:
-            logger.debug('Copying %s to %s on host %a',
+            logger.debug('Copying %s to %s on host %s',
                          local_path, remote_path, self.private_ip)
             connection.put(expanduser(local_path), remote_path)
 
@@ -199,20 +198,10 @@ def write_dict_to_yaml_file(content, yaml_path):
         yaml.dump(content, yaml_file)
 
 
-def cloudify_rpm_is_installed(cloudify_rpm):
-    proc = run(['rpm', '-qa'])
-    cloudify_manager_install_pkg_name = run(
-        ['grep', 'cloudify-manager-install'],
-        stdin=proc.aggr_stdout, ignore_failures=True).aggr_stdout.strip()
-    if cloudify_manager_install_pkg_name:
-        if cloudify_manager_install_pkg_name == cloudify_rpm:
-            return True
-        else:
-            raise ClusterInstallError(
-                'Cloudify RPM is already installed with a different version. '
-                'Please uninstall it first.')
-    else:
-        return False
+def cloudify_rpm_is_installed():
+    proc = run(['rpm', '-qi', 'cloudify-manager-install'],
+               ignore_failures=True)
+    return proc.returncode == 0
 
 
 def yum_is_present():

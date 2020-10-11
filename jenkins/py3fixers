@@ -2,8 +2,8 @@
 -f lib2to3.fixes.fix_getcwdu
 -f lib2to3.fixes.fix_long
 -f lib2to3.fixes.fix_nonzero
--f lib2to3.fixes.fix_input
--f lib2to3.fixes.fix_raw_input
+# -f lib2to3.fixes.fix_input
+# -f lib2to3.fixes.fix_raw_input
 -f lib2to3.fixes.fix_itertools
 -f lib2to3.fixes.fix_itertools_imports
 -f lib2to3.fixes.fix_exec
