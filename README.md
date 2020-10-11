@@ -10,6 +10,7 @@
     * [Generating a configuration file](#generating-a-configuration-file)
     * [Filling in the configuration file](#filling-in-the-configuration-file)
     * [Installing a Cloudify cluster](#installing-a-cloudify-cluster)
+    * [Removing a Cloudify cluster](#removing-a-cloudify-cluster)
 * [Fault tolerance mechanisms](#fault-tolerance-mechanisms)
 
 &nbsp;
@@ -97,7 +98,7 @@ cfy_cluster_manager generate-config [OPTIONS]
 
 * `-v, --verbose` - Show verbose output.
 
-* `-h, --help` - Show this help message and exit`
+* `-h, --help` - Show this help message and exit.
 
 **NOTE:** `--three-nodes` or `--nine-nodes` must be specified, and they cannot be specified together.
 
@@ -145,7 +146,7 @@ cfy_cluster_manager install [OPTIONS]
 ```
 
 #### Options
-* `-- config-path` - The completed cluster install configuration file path. 
+* `-- config-path` - The completed cluster configuration file path. 
                      Default: ./cfy_cluster_config.yaml
 
 * `--override` - If specified, any previous installation of Cloudify on 
@@ -155,7 +156,24 @@ cfy_cluster_manager install [OPTIONS]
 
 * `-v, --verbose` - Show verbose output.
 
-* `-h, --help` - Show this help message and exit`
+* `-h, --help` - Show this help message and exit.
+
+&nbsp;
+### Removing a Cloudify cluster
+The created Cloudify cluster can be removed using the following command: 
+
+```bash
+cfy_cluster_manager remove [OPTIONS]
+```
+
+#### Options
+* `-- config-path` - The completed cluster configuration file path. 
+                     Default: ./cfy_cluster_config.yaml
+
+* `-v, --verbose` - Show verbose output.
+
+* `-h, --help` - Show this help message and exit.
+
 
 &nbsp;
 ## Fault tolerance mechanisms

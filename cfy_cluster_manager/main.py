@@ -506,11 +506,11 @@ def _log_managers_connection_strings(manager_nodes):
                 'following connection strings:\n%s', managers_str)
 
 
-def _print_successful_installation_message(start_time):
+def _print_successful_installation_message(start_time, msg='installed'):
     running_time = time.time() - start_time
     m, s = divmod(running_time, 60)
-    logger.info('Successfully installed a Cloudify cluster in '
-                '{0} minutes and {1} seconds'.format(int(m), int(s)))
+    logger.info('Cloudify cluster was successfully {0} in '
+                '{1} minutes and {2} seconds'.format(msg, int(m), int(s)))
 
 
 def _install_cloudify_locally(rpm_download_link):
@@ -840,14 +840,14 @@ def _handle_installed_instances(instances_dict, override, verbose):
                     logger.info('%s was previously installed successfully',
                                 instance.name)
                     if override:
-                        logger.info('Override specified, removing Cloudify '
-                                    'from %s', instance.name)
+                        logger.info('Removing Cloudify from %s', instance.name)
                         _remove_cloudify_installation(instance, verbose)
                 else:
                     logger.info('Previous Cloudify installation of %s failed',
                                 instance.name)
                     _create_installation_files(instance, verbose)
-                    logger.info('Removing failed Cloudify installation')
+                    logger.info('Removing failed Cloudify installation '
+                                'from %s', instance.name)
                     _remove_cloudify_installation(instance, verbose)
                     if override:
                         continue
@@ -905,12 +905,43 @@ def install(config_path, override, only_validate, verbose):
     _print_successful_installation_message(start_time)
 
 
+def remove(config_path, verbose):
+    if not yum_is_present():
+        raise ClusterInstallError('Yum is not present.')
+
+    start_time = time.time()
+    logger.info('Removing Cloudify cluster')
+    config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
+    config = get_dict_from_yaml(config_path)
+    using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
+    instances_dict = (_generate_three_nodes_cluster_dict(config)
+                      if using_three_nodes_cluster else
+                      _generate_general_cluster_dict(config))
+
+    previous_installation = _previous_installation(instances_dict)
+    if previous_installation:
+        _handle_installed_instances(instances_dict, True, verbose)
+        _print_successful_installation_message(start_time, 'removed')
+    else:
+        logger.info('No previous installation of a Cloudify cluster was '
+                    'detected. Nothing to remove.')
+
+
 def add_verbose_arg(parser):
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
         default=False,
         help='Show verbose output'
+    )
+
+
+def add_config_arg(parser):
+    parser.add_argument(
+        '--config-path',
+        action='store',
+        help='The completed cluster configuration file. default: '
+             './{0}'.format(CLUSTER_CONFIG_FILE_NAME)
     )
 
 
@@ -959,11 +990,7 @@ def main():
         help='Install a Cloudify cluster based on the cluster install '
              'configuration file')
 
-    install_args.add_argument(
-        '--config-path',
-        action='store',
-        help='The completed cluster install configuration file. '
-             'default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
+    add_config_arg(install_args)
 
     install_args.add_argument(
         '--override',
@@ -982,6 +1009,14 @@ def main():
 
     add_verbose_arg(install_args)
 
+    remove_args = subparsers.add_parser(
+        'remove',
+        help='Remove a Cloudify cluster based on the specified '
+             'configuration file')
+
+    add_config_arg(remove_args)
+    add_verbose_arg(remove_args)
+
     args = parser.parse_args()
 
     if hasattr(args, 'verbose'):
@@ -993,6 +1028,9 @@ def main():
 
     elif args.action == 'install':
         install(args.config_path, args.override, args.validate, args.verbose)
+
+    elif args.action == 'remove':
+        remove(args.config_path, args.verbose)
 
     else:
         raise RuntimeError('Invalid action specified in parser.')
