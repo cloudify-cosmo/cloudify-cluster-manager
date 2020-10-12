@@ -684,8 +684,9 @@ def generate_config(output_path,
             'Please specify `--three-nodes` or `--nine-nodes`.')
 
     if exists(output_path):
-        override_file = input('The path {} already exists, would you like '
-                              'to override it? (yes/no) '.format(output_path))
+        override_file = eval(
+            input('The path {} already exists, would you like '
+                  'to override it? (yes/no) '.format(output_path)))
         if override_file.lower() not in ('yes', 'y', 'no', 'n'):
             raise ClusterInstallError('Please respond with a yes or no')
         if override_file.lower() in ('no', 'n'):
@@ -712,7 +713,7 @@ def generate_config(output_path,
             _handle_cluster_config_file(
                 'cfy_three_nodes_cluster_config.yaml', output_path)
 
-    logger.info('Created the cluster install configuration file in %s',
+    logger.info('Created the cluster install configuration file %s',
                 output_path)
 
 
@@ -728,7 +729,7 @@ def _handle_certificates(config, instances_dict):
 
 
 def _previous_installation(instances_dict, rpm_download_link, override):
-    logger.info('Checking for a previous installation')
+    logger.info('Checking for a previous installation of Cloudify')
     first_instance = (
         instances_dict['postgresql'][0] if 'postgresql' in instances_dict
         else instances_dict['rabbitmq'][0])
@@ -800,7 +801,7 @@ def install(config_path, override, only_validate, verbose):
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
-    logger.info('Validating configuration file' if only_validate else
+    logger.info('Validating the configuration file' if only_validate else
                 'Installing a Cloudify cluster')
     start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
@@ -920,7 +921,8 @@ def main():
 
     args = parser.parse_args()
 
-    setup_logger(args.verbose)
+    if hasattr(args, 'verbose'):
+        setup_logger(args.verbose)
 
     if args.action == 'generate-config':
         generate_config(args.output, args.three_nodes, args.nine_nodes,
