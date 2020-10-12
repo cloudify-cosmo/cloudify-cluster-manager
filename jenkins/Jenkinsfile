@@ -135,7 +135,6 @@ pipeline {
 
           echo 'Copy RPM to rpm folder'
           sh("mkdir -p ${env.WORKSPACE}/rpm && cp -rf /root/rpmbuild/RPMS/x86_64/. ${env.WORKSPACE}/rpm")
-          sh("cp -rf /root/rpmbuild/RPMS/noarch/. ${env.WORKSPACE}/rpm")
         }
       }
       post {

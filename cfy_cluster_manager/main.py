@@ -801,7 +801,7 @@ def install(config_path, override, only_validate, verbose):
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
-    logger.info('Validating configuration file' if only_validate else
+    logger.info('Validating the configuration file' if only_validate else
                 'Installing a Cloudify cluster')
     start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
