@@ -5,14 +5,14 @@ def secrets = [
 
 def configuration = [vaultUrl: "${env.VAULT_URL}",  vaultCredentialId: 'vault-app-role', engineVersion: 2]
 
-def getClusterManagerVersion(String brnachName='master'){
+def getClusterManagerVersion(String branchName='master'){
   sh returnStdout:true, script: """
     eval "\$(curl 'https://raw.githubusercontent.com/cloudify-cosmo/cloudify-cluster-manager/${branchName}/packaging/version_info')"
     echo "\$CLOUDIFY_CLUSTER_MANAGER_VERSION"
   """
 }
 
-def getClusterManagerPreRelease(String brnachName='master'){
+def getClusterManagerPreRelease(String branchName='master'){
   sh returnStdout:true, script: """
     eval "\$(curl 'https://raw.githubusercontent.com/cloudify-cosmo/cloudify-cluster-manager/${branchName}/packaging/version_info')"
     echo "\$CLOUDIFY_CLUSTER_MANAGER_PACKAGE_RELEASE"
