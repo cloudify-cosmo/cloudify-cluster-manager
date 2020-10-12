@@ -31,7 +31,7 @@ setup(
         ]
     },
     install_requires=[
-        'pyyaml==3.12',
+        'pyyaml==5.1',
         'jinja2>=2.10,<2.11',
         'fabric==2.5.0'
     ]
