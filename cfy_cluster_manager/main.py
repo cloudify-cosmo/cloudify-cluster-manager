@@ -921,7 +921,8 @@ def main():
 
     args = parser.parse_args()
 
-    setup_logger(args.verbose)
+    if hasattr(args, 'verbose'):
+        setup_logger(args.verbose)
 
     if args.action == 'generate-config':
         generate_config(args.output, args.three_nodes, args.nine_nodes,

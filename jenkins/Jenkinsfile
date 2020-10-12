@@ -19,6 +19,18 @@ def getClusterManagerPreRelease(String branchName='master'){
   """
 }
 
+def uploadRpmToS3 (String sourceDir, String destDir){
+  setAWSCredentials()
+  echo "Source Folder: ${sourceDir}"
+  echo "Destination Folder: ${destDir}"
+  container('awscli'){
+    sh """
+      ls -al ${source_dir}
+      aws s3 cp ${sourceDir} ${Constants.RELEASE_BUCKET_S3}/${destDir} --acl public-read --recursive
+    """
+  }
+}
+
 @Library('pipeline-shared-library') _
 
 pipeline {
@@ -42,7 +54,7 @@ pipeline {
     PROJECT = "cloudify-cluster-manager"
     VERSION=getClusterManagerVersion("${env.BRANCH_NAME}").trim()
     PRERELEASE = getClusterManagerPreRelease("${env.BRANCH_NAME}").trim()
-    S3_BUILD_PATH = "${env.VERSION}/${env.PRERELEASE}-build/${env.PROJECT}/${env.BRANCH}/${env.BUILD_NUMBER}"
+    S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}"
   }
 
   stages{

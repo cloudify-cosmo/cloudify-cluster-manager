@@ -2,8 +2,8 @@
 %define _venv /opt/cfy_cluster_manager
 
 Name:           cloudify-cluster-manager
-Version:        %{CLOUDIFY_CLUSTER_MANAGER_VERSION}
-Release:        %{CLOUDIFY_CLUSTER_MANAGER_PACKAGE_RELEASE}%{?dist}
+Version:        %{CLOUDIFY_VERSION}
+Release:        %{CLOUDIFY_PACKAGE_RELEASE}%{?dist}
 Summary:        Cloudify Cluster Installer
 Group:          Applications/Multimedia
 License:        Apache 2.0
