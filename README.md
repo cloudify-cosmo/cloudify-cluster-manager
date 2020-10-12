@@ -176,3 +176,4 @@ The installation process would:
 This command would: 
     1. Go over the instances and remove Cloudify from them (including the RPM). 
     2. Run the installation process from the start.
+
