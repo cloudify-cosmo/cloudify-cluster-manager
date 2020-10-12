@@ -58,7 +58,7 @@ pipeline {
         }
       }
     }
-    stage('Test flake8'){
+    stage('flake8'){
       steps{
         sh script: "mkdir -p ${env.WORKSPACE}/flake8 && cp -rf ${env.WORKSPACE}/${env.PROJECT}/. ${env.WORKSPACE}/flake8", label: "copying repo to seperate workspace"
 
@@ -72,7 +72,7 @@ pipeline {
         }
       }
     }
-    stage('Python3 compat'){
+    stage('py3 compat'){
       steps {
         sh script: "mkdir -p ${env.WORKSPACE}/py3_compat && cp -rf ${env.WORKSPACE}/${env.PROJECT}/. ${env.WORKSPACE}/py3_compat", label: "copying repo to seperate workspace"
 
