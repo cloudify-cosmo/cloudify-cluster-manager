@@ -286,7 +286,7 @@ def check_signed_by(ca_filename, cert_filename, errors_list):
 
 
 def check_san(vm_name, vm_dict, cert_path, errors_list):
-    """Check the vm is specified in the certificate's SAN"""
+    """Check the vm is specified in the certificate SAN"""
     hostname = vm_dict.get('hostname')
     get_cert_command = openssl_command(cert_path, 'x509', ['-text'])
     cert = run(get_cert_command).aggr_stdout.strip()
