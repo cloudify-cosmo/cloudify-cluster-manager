@@ -19,18 +19,6 @@ def getClusterManagerPreRelease(String branchName='master'){
   """
 }
 
-def uploadRpmToS3 (String sourceDir, String destDir){
-  setAWSCredentials()
-  echo "Source Folder: ${sourceDir}"
-  echo "Destination Folder: ${destDir}"
-  container('awscli'){
-    sh """
-      ls -al ${source_dir}
-      aws s3 cp ${sourceDir} ${Constants.RELEASE_BUCKET_S3}/${destDir} --acl public-read --recursive
-    """
-  }
-}
-
 @Library('pipeline-shared-library') _
 
 pipeline {
@@ -58,7 +46,7 @@ pipeline {
   }
 
   stages{
-    stage('prepare') {
+    stage('Prepare') {
       steps {
         repoCheckout('https://github.com/cloudify-cosmo/cloudify-cluster-manager.git',"${env.PROJECT}","${env.BRANCH}")
         container('python'){
@@ -70,7 +58,7 @@ pipeline {
         }
       }
     }
-    stage('flake8'){
+    stage('Test flake8'){
       steps{
         sh script: "mkdir -p ${env.WORKSPACE}/flake8 && cp -rf ${env.WORKSPACE}/${env.PROJECT}/. ${env.WORKSPACE}/flake8", label: "copying repo to seperate workspace"
 
@@ -84,7 +72,7 @@ pipeline {
         }
       }
     }
-    stage('py3_compat'){
+    stage('Python3 compat'){
       steps {
         sh script: "mkdir -p ${env.WORKSPACE}/py3_compat && cp -rf ${env.WORKSPACE}/${env.PROJECT}/. ${env.WORKSPACE}/py3_compat", label: "copying repo to seperate workspace"
 
