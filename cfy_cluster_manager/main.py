@@ -713,7 +713,7 @@ def generate_config(output_path,
             _handle_cluster_config_file(
                 'cfy_three_nodes_cluster_config.yaml', output_path)
 
-    logger.info('Created the cluster install configuration file in %s',
+    logger.info('Created the cluster install configuration file %s',
                 output_path)
 
 
