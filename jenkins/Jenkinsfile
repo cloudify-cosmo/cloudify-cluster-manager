@@ -35,7 +35,7 @@ pipeline {
     PROJECT = "cloudify-cluster-manager"
     VERSION=getClusterManagerVersion("${env.BRANCH_NAME}").trim()
     PRERELEASE = getClusterManagerPreRelease("${env.BRANCH_NAME}").trim()
-    S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}/${params.BUILD_NUMBER}"
+    S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}/${env.BUILD_NUMBER}"
   }
 
   stages{
