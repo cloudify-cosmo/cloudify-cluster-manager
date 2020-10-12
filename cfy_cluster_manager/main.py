@@ -729,7 +729,7 @@ def _handle_certificates(config, instances_dict):
 
 
 def _previous_installation(instances_dict, rpm_download_link, override):
-    logger.info('Checking for a previous installation')
+    logger.info('Checking for a previous installation of Cloudify')
     first_instance = (
         instances_dict['postgresql'][0] if 'postgresql' in instances_dict
         else instances_dict['rabbitmq'][0])
