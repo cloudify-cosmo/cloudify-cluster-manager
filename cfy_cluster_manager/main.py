@@ -17,7 +17,7 @@ from .logger import get_cfy_cluster_manager_logger, setup_logger
 from .utils import (check_cert_key_match, check_cert_path, check_san,
                     check_signed_by, cloudify_rpm_is_installed,
                     ClusterInstallError, copy, current_host_ip,
-                    raise_errors_list, get_dict_from_yaml, move, run,
+                    get_dict_from_yaml, move, raise_errors_list, run,
                     sudo, VM, write_dict_to_yaml_file, yum_is_present)
 
 logger = get_cfy_cluster_manager_logger()
@@ -120,7 +120,7 @@ def _get_rabbitmq_cluster_members(rabbitmq_instances, load_balance_ip):
         rabbitmq_instance.name: {
             'networks':
                 ({'default': rabbitmq_instance.private_ip,
-                 'load_balancer': load_balance_ip} if load_balance_ip else
+                  'load_balancer': load_balance_ip} if load_balance_ip else
                  {'default': rabbitmq_instance.private_ip})
         } for rabbitmq_instance in rabbitmq_instances
     }
@@ -571,16 +571,16 @@ def _validate_config_path(vm_name, config_path, errors_list):
                            'exist.'.format(expanded_path, vm_name))
 
 
-def _validate_config_paths(existing_vms_list, using_three_nodes, errors_list):
+def _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list):
     if using_three_nodes:
-        config_paths = [config_path for vm_dict in existing_vms_list.values()
+        config_paths = [config_path for vm_dict in existing_vms_dict.values()
                         for config_path in vm_dict['config_path'].values()]
     else:
         config_paths = [vm_dict.get('config_path') for vm_dict in
-                        existing_vms_list.values()]
+                        existing_vms_dict.values()]
 
     if all(config_paths):
-        for vm_name, vm_dict in existing_vms_list.items():
+        for vm_name, vm_dict in existing_vms_dict.items():
             if using_three_nodes:
                 for config_name, config_path in vm_dict['config_path'].items():
                     vm_dict['config_path'][config_name] = \
@@ -598,17 +598,32 @@ def _validate_config_paths(existing_vms_list, using_three_nodes, errors_list):
                            'all instances or none of them.')
 
 
+def _validate_vms_not_deuplicated(existing_vms_dict, errors_list):
+    existing_vms_ips = set()
+    for vm_name, vm_dict in existing_vms_dict.items():
+        vm_private_ip = vm_dict.get('private_ip')
+        if not vm_private_ip:
+            errors_list.append(
+                'private_ip should be provided for {0}'.format(vm_name))
+            continue
+        for vm in existing_vms_ips:
+            if vm_private_ip == vm[1]:
+                errors_list.append(
+                    'The private_ip of {0} and {1} is the same'.format(
+                        vm[0], vm_name))
+                break
+
+        existing_vms_ips.add((vm_name, vm_private_ip))
+
+
 def _validate_existing_vms(config, using_three_nodes, errors_list):
-    existing_vms_list = config.get('existing_vms')
+    existing_vms_dict = config.get('existing_vms')
+    _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list)
+    _validate_vms_not_deuplicated(existing_vms_dict, errors_list)
     ca_path_exists = (_using_provided_certificates(config) and
                       _check_path(config, 'ca_cert_path', errors_list))
-    _validate_config_paths(existing_vms_list, using_three_nodes, errors_list)
-    for vm_name, vm_dict in existing_vms_list.items():
+    for vm_name, vm_dict in existing_vms_dict.items():
         logger.info('Validating %s', vm_name)
-        if not vm_dict.get('private_ip'):
-            errors_list.append('private_ip should be provided for '
-                               '{0}'.format(vm_name))
-
         if ca_path_exists:
             ca_cert_path = config.get('ca_cert_path')
             key_path_exists = _check_path(vm_dict, 'key_path',
@@ -801,9 +816,9 @@ def install(config_path, override, only_validate, verbose):
     if not yum_is_present():
         raise ClusterInstallError('Yum is not present.')
 
+    start_time = time.time()
     logger.info('Validating the configuration file' if only_validate else
                 'Installing a Cloudify cluster')
-    start_time = time.time()
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
     config = get_dict_from_yaml(config_path)
     using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
@@ -825,6 +840,7 @@ def install(config_path, override, only_validate, verbose):
         _mark_installed_instances(instances_dict, rpm_download_link, override,
                                   verbose)
     if (not previous_installation) or override:
+        logger.info('Preparing cluster mangaer files')
         _create_cluster_install_directory()
         copy(config.get('cloudify_license_path'),
              join(CLUSTER_INSTALL_DIR, 'license.yaml'))
