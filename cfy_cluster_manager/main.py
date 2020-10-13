@@ -598,7 +598,7 @@ def _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list):
                            'all instances or none of them.')
 
 
-def _validate_vms_not_deuplicated(existing_vms_dict, errors_list):
+def _validate_vms_not_duplicated(existing_vms_dict, errors_list):
     existing_vms_ips = set()
     for vm_name, vm_dict in existing_vms_dict.items():
         vm_private_ip = vm_dict.get('private_ip')
@@ -609,8 +609,9 @@ def _validate_vms_not_deuplicated(existing_vms_dict, errors_list):
         for vm in existing_vms_ips:
             if vm_private_ip == vm[1]:
                 errors_list.append(
-                    'The private_ip of {0} and {1} is the same'.format(
-                        vm[0], vm_name))
+                    'The private_ips of {0} and {1} are the same. '
+                    'Please ensure all provided VMs have different '
+                    'IPs.'.format(vm[0], vm_name))
                 break
 
         existing_vms_ips.add((vm_name, vm_private_ip))
@@ -619,7 +620,7 @@ def _validate_vms_not_deuplicated(existing_vms_dict, errors_list):
 def _validate_existing_vms(config, using_three_nodes, errors_list):
     existing_vms_dict = config.get('existing_vms')
     _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list)
-    _validate_vms_not_deuplicated(existing_vms_dict, errors_list)
+    _validate_vms_not_duplicated(existing_vms_dict, errors_list)
     ca_path_exists = (_using_provided_certificates(config) and
                       _check_path(config, 'ca_cert_path', errors_list))
     for vm_name, vm_dict in existing_vms_dict.items():
