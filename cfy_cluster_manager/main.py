@@ -629,7 +629,7 @@ def _validate_external_db_config(config, override, errors_list):
     if external_db_config:
         if override:
             logger.warning('The installation process does not override the '
-                           'external Db')
+                           'external DB')
     else:
         return
 
