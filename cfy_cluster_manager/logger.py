@@ -14,7 +14,6 @@ def setup_logger(verbose):
     logging.getLogger('invoke').setLevel(logging.WARNING)
     logging.getLogger('fabric').setLevel(logging.WARNING)
 
-    logger = logging.getLogger()
     log_level = logging.DEBUG if verbose else logging.INFO
     out_sh = logging.StreamHandler(sys.stdout)
     out_sh.setLevel(log_level)
