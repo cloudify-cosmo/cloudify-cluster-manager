@@ -12,6 +12,24 @@ def getClusterManagerPreRelease(String branchName='master'){
   """
 }
 
+def buildClusterManagerRPM(String workspace, String version, String prerelease, String branchName='master'){
+  container('rpmbuild'){
+    sh """
+      cd && mkdir rpmbuild && cd rpmbuild
+      git clone --single-branch --branch ${branchName} https://github.com/cloudify-cosmo/cloudify-cluster-manager.git SOURCES && cd SOURCES
+    """
+
+    echo 'Download sources for RPM spec file & Build RPM'
+    sh "yum install rpmdevtools -y"
+
+    echo 'Build Cloudify Cluster Manager RPM'
+    buildRpm('~/rpmbuild/SOURCES', 'cloudify-cluster-manager.spec', "${version}", "${prerelease}")
+
+    echo 'Copy RPM to rpm folder'
+    sh("mkdir -p ${workspace}/rpm && cp -rf /root/rpmbuild/RPMS/x86_64/. ${workspace}/rpm")
+  }
+}
+
 @Library('pipeline-shared-library') _
 
 pipeline {
@@ -36,12 +54,12 @@ pipeline {
     VERSION=getClusterManagerVersion("${env.BRANCH_NAME}").trim()
     PRERELEASE = getClusterManagerPreRelease("${env.BRANCH_NAME}").trim()
     S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}/${env.BUILD_NUMBER}"
+    S3_RELEASE_PATH = "${env.PROJECT}/${env.VERSION}/ga-release"
   }
 
   stages{
     stage('Prepare') {
       steps {
-        repoCheckout('https://github.com/cloudify-cosmo/cloudify-cluster-manager.git',"${env.PROJECT}","${env.BRANCH}")
         container('python'){
           sh '''
             apt-get update
@@ -114,27 +132,37 @@ pipeline {
     }
     stage('Build RPM'){
       steps{
-        container('rpmbuild'){
-          sh """
-            cd && mkdir rpmbuild && cd rpmbuild
-            git clone --single-branch --branch ${env.BRANCH} https://github.com/cloudify-cosmo/cloudify-cluster-manager.git SOURCES && cd SOURCES
-          """
-
-          echo 'Download sources for RPM spec file & Build RPM'
-          sh "yum install rpmdevtools -y"
-
-          echo 'Build Cloudify Cluster Manager RPM'
-          buildRpm('~/rpmbuild/SOURCES', 'cloudify-cluster-manager.spec', "${env.VERSION}", "${env.PRERELEASE}")
-
-          echo 'Copy RPM to rpm folder'
-          sh("mkdir -p ${env.WORKSPACE}/rpm && cp -rf /root/rpmbuild/RPMS/x86_64/. ${env.WORKSPACE}/rpm")
-        }
+        buildClusterManagerRPM("${env.WORKSPACE}", "${env.VERSION}", "${env.PRERELEASE}", "${env.BRANCH}")
       }
       post {
         success {
           echo 'Upload artifacts to S3'
           uploadToReleaseS3("${env.WORKSPACE}/rpm/","${env.S3_BUILD_PATH}")
         }
+      }
+    }
+    stage('Rlease Cloudify Cluster Manager'){
+      when { branch pattern: ".+-build", comparator: "REGEXP" }
+      steps{
+        buildClusterManagerRPM("${env.WORKSPACE}", "${env.VERSION}", "ga", "${env.BRANCH}")
+      }
+      post {
+        success {
+          echo 'Upload artifacts to S3'
+          uploadToReleaseS3("${env.WORKSPACE}/rpm/","${env.S3_RELEASE_PATH}")
+        }
+      }
+    }
+    stage('Upload Cloudify Cluster Manager package to PyPI') {
+      when { branch pattern: ".+-build", comparator: "REGEXP" }
+      steps {
+        echo 'Upload Cloudify Cluster Manager package to PyPI'
+        build job: 'upload-to-pypi', parameters: [
+          string(name: 'BRANCH', value: "${env.BRANCH}"),
+          string(name: 'GITHUB_PROJECT_URL', value: "https://github.com/cloudify-cosmo/cloudify-cluster-manager.git"),
+          string(name: 'BUILD_BRANCH', value: "master"),
+          booleanParam(name: 'VALIDATE_PACKAGE', value: true)
+        ]
       }
     }
   }
