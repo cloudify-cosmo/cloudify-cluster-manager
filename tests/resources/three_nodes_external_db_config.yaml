@@ -1,0 +1,76 @@
+ssh_key_path: '' # Filled by the test
+ssh_user: 'centos'
+cloudify_license_path: '' # Filled by the test
+manager_rpm_download_link: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
+
+ldap:
+  server: ''
+  domain: ''
+  is_active_directory: ''
+  ca_cert: ''
+  username: ''
+  password: ''
+  dn_extra: ''
+
+ca_cert_path: ''
+
+load_balancer_ip: ''
+
+existing_vms:
+    node-1:
+      private_ip: '172.12.0.66' # Arbitrary chosen, this value will not be tested
+      public_ip: '10.239.1.137' # Arbitrary chosen, this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path:
+        manager_config_path: ''
+        rabbitmq_config_path: ''
+
+    node-2:
+      private_ip: '172.12.0.67' # Arbitrary chosen, this value will not be tested
+      public_ip: '10.239.1.138' # Arbitrary chosen, this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path:
+        manager_config_path: ''
+        rabbitmq_config_path: ''
+
+    node-3:
+      private_ip: '172.12.0.68' # Arbitrary chosen, this value will not be tested
+      public_ip: '10.239.1.139' # Arbitrary chosen, this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path:
+        manager_config_path: ''
+        rabbitmq_config_path: ''
+
+external_db_configuration:
+  host: ''
+  ca_path: ''
+
+  server_db_name: ''
+  server_username: ''
+  server_password: ''
+
+  cloudify_db_name: ''
+  cloudify_username: ''
+  cloudify_password: ''
+
+
+credentials:
+  manager:
+    admin_username: 'admin'
+    admin_password: ''
+
+  rabbitmq:
+    username: ''
+    password: ''
+    erlang_cookie: ''
+
+  prometheus:
+    username: ''
+    password: ''
+

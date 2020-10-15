@@ -1,0 +1,121 @@
+ssh_key_path: '' # Filled by the test
+ssh_user: 'centos'
+cloudify_license_path: '' # Filled by the test
+manager_rpm_download_link: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
+
+ldap:
+  server: ''
+  domain: ''
+  is_active_directory: ''
+  ca_cert: ''
+  username: ''
+  password: ''
+  dn_extra: ''
+
+ca_cert_path: ''
+
+load_balancer_ip: ''
+
+existing_vms:
+
+    manager-1:
+      private_ip: '172.12.0.66'
+      public_ip: '10.239.1.137'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    manager-2:
+      private_ip: '172.12.0.67'
+      public_ip: '10.239.1.138'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    manager-3:
+      private_ip: '172.12.0.68'
+      public_ip: '10.239.1.139'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    postgresql-1:
+      private_ip: '172.12.0.69'
+      public_ip: '10.239.1.14'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    postgresql-2:
+      private_ip: '172.12.0.7'
+      public_ip: '10.239.1.140'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    postgresql-3:
+      private_ip: '172.12.0.71'
+      public_ip: '10.239.1.141'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    rabbitmq-1:
+      private_ip: '172.12.0.72'
+      public_ip: '10.239.1.142'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    rabbitmq-2:
+      private_ip: '172.12.0.73'
+      public_ip: '10.239.1.143'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    rabbitmq-3:
+      private_ip: '172.12.0.74'
+      public_ip: '10.239.1.144'
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+credentials:
+  manager:
+    admin_username: 'admin'
+    admin_password: ''
+
+  postgresql:
+    postgres_password: ''
+    cluster:
+      etcd:
+        cluster_token: ''
+        root_password: ''
+        patroni_password: ''
+      patroni:
+        rest_password: ''
+      postgres:
+        replicator_password: ''
+
+    db_monitoring:
+      username: ''
+      password: ''
+
+  rabbitmq:
+    username: ''
+    password: ''
+    erlang_cookie: ''
+
+  prometheus:
+    username: ''
+    password: ''
