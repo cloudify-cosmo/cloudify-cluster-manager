@@ -161,6 +161,26 @@ def test_validate_external_db_paths(three_nodes_external_db_config_dict):
         assert(path_key in str(excinfo.value))
 
 
+def test_validate_success_external_db(three_nodes_external_db_config_dict,
+                                      ca_path):
+    # It's enough to test it only on the three nodes external db config,
+    # since the nine nodes external db config uses the same logic.
+    three_nodes_external_db_config_dict['external_db_configuration'] = {
+        'host': 'user.postgres.database.azure.com',
+        'ca_path': ca_path,
+        'server_db_name': 'postgres',
+        'server_username': 'user@user',
+        'server_password': 'strongpassword',
+
+        'cloudify_db_name': 'cloudify_db',
+        'cloudify_username': 'cloudify@user',
+        'cloudify_password': 'cloudify'
+    }
+    validate_config(config=three_nodes_external_db_config_dict,
+                    using_three_nodes_cluster=True,
+                    override=False)
+
+
 def test_validate_ldaps_and_not_ca(three_nodes_config_dict):
     # It's enough to test it only on the three nodes external db config,
     # since the nine nodes external db config uses the same logic.
