@@ -131,6 +131,7 @@ pipeline {
       }
     }
     stage('Build RPM'){
+      when { not { branch pattern: ".+-build", comparator: "REGEXP" } }
       steps{
         buildClusterManagerRPM("${env.VERSION}", "${env.PRERELEASE}", "${env.BRANCH}")
       }
