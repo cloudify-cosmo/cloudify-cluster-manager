@@ -12,11 +12,11 @@ def getClusterManagerPreRelease(String branchName='master'){
   """
 }
 
-def buildClusterManagerRPM(String workspace, String version, String prerelease, String branchName='master'){
+def buildClusterManagerRPM(String version, String prerelease, String branchName='master'){
   container('rpmbuild'){
     sh """
       cd && mkdir rpmbuild && cd rpmbuild
-      git clone --single-branch --branch ${branchName} https://github.com/cloudify-cosmo/cloudify-cluster-manager.git SOURCES && cd SOURCES
+      mkdir -p SOURCES && cp -rf ${env.WORKSPACE}/cloudify-cluster-manager/* SOURCES && cd SOURCES
     """
 
     echo 'Download sources for RPM spec file & Build RPM'
@@ -26,7 +26,7 @@ def buildClusterManagerRPM(String workspace, String version, String prerelease, 
     buildRpm('~/rpmbuild/SOURCES', 'cloudify-cluster-manager.spec', "${version}", "${prerelease}")
 
     echo 'Copy RPM to rpm folder'
-    sh("mkdir -p ${workspace}/rpm && cp -rf /root/rpmbuild/RPMS/x86_64/. ${workspace}/rpm")
+    sh("mkdir -p ${env.WORKSPACE}/rpm && cp -rf /root/rpmbuild/RPMS/x86_64/. ${env.WORKSPACE}/rpm")
   }
 }
 
@@ -132,7 +132,7 @@ pipeline {
     }
     stage('Build RPM'){
       steps{
-        buildClusterManagerRPM("${env.WORKSPACE}", "${env.VERSION}", "${env.PRERELEASE}", "${env.BRANCH}")
+        buildClusterManagerRPM("${env.VERSION}", "${env.PRERELEASE}", "${env.BRANCH}")
       }
       post {
         success {
@@ -144,12 +144,12 @@ pipeline {
     stage('Rlease Cloudify Cluster Manager'){
       when { branch pattern: ".+-build", comparator: "REGEXP" }
       steps{
-        buildClusterManagerRPM("${env.WORKSPACE}", "${env.VERSION}", "ga", "${env.BRANCH}")
+        buildClusterManagerRPM("${env.VERSION}", "ga", "${env.BRANCH}")
       }
       post {
         success {
           echo 'Upload artifacts to S3'
-          uploadToReleaseS3("${env.WORKSPACE}/rpm/","${env.S3_RELEASE_PATH}")
+          uploadToReleaseS3("${env.WORKSPACE}/rpm/", "${env.S3_RELEASE_PATH}")
         }
       }
     }
