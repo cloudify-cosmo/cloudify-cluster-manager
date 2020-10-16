@@ -18,36 +18,33 @@ load_balancer_ip: ''
 
 existing_vms:
     node-1:
-      private_ip: '172.12.0.66' # Arbitrary chosen, this value will not be tested
-      public_ip: '10.239.1.137' # Arbitrary chosen, this value will not be tested
+      private_ip: '192.0.2.0' # this value will not be tested
+      public_ip: '203.0.113.0' # this value will not be tested
       hostname: ''
       cert_path: ''
       key_path: ''
       config_path:
         manager_config_path: ''
-        postgresql_config_path: ''
         rabbitmq_config_path: ''
 
     node-2:
-      private_ip: '172.12.0.67' # Arbitrary chosen, this value will not be tested
-      public_ip: '10.239.1.138' # Arbitrary chosen, this value will not be tested
+      private_ip: '192.0.2.1' # this value will not be tested
+      public_ip: '203.0.113.1' # this value will not be tested
       hostname: ''
       cert_path: ''
       key_path: ''
       config_path:
         manager_config_path: ''
-        postgresql_config_path: ''
         rabbitmq_config_path: ''
 
     node-3:
-      private_ip: '172.12.0.68' # Arbitrary chosen, this value will not be tested
-      public_ip: '10.239.1.139' # Arbitrary chosen, this value will not be tested
+      private_ip: '192.0.2.2' # this value will not be tested
+      public_ip: '203.0.113.2' # this value will not be tested
       hostname: ''
       cert_path: ''
       key_path: ''
       config_path:
         manager_config_path: ''
-        postgresql_config_path: ''
         rabbitmq_config_path: ''
 
 credentials:

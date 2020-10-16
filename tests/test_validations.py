@@ -57,16 +57,14 @@ def test_vms_not_duplicated(three_nodes_config_dict):
     # nodes config uses the same logic.
     three_nodes_config_dict['existing_vms']['node-1']['private_ip'] = \
         three_nodes_config_dict['existing_vms']['node-2']['private_ip']
-    with pytest.raises(ClusterInstallError) as excinfo:
+    with pytest.raises(ClusterInstallError,
+                       match='.*private_ips.*node-1.*node-2.*same.*'):
         validate_config(config=three_nodes_config_dict,
                         using_three_nodes_cluster=True,
                         override=False)
 
-    assert ('The private_ips of node-1 and node-2 are the same.'
-            in str(excinfo.value))
 
-
-def test_certificates_provided(config_dir, three_nodes_config_dict, ca_path):
+def test_certificates_provided(three_nodes_config_dict, ca_path):
     # It's enough to test it only on the three nodes config, since the nine
     # nodes config uses the same logic.
     three_nodes_config_dict['ca_cert_path'] = ca_path
@@ -77,8 +75,8 @@ def test_certificates_provided(config_dir, three_nodes_config_dict, ca_path):
 
     for path_name in 'cert_path', 'key_path':
         for num in [1, 2, 3]:
-            assert '{0} is not provided for instance node-{1}'.format(
-                path_name, num) in str(excinfo.value)
+            assert excinfo.match('.*{0}.*not provided.*node-{1}.*'.format(
+                path_name, num))
 
 
 def test_validate_external_db_paths(three_nodes_external_db_config_dict):
@@ -92,7 +90,7 @@ def test_validate_external_db_paths(three_nodes_external_db_config_dict):
     external_db_keys = three_nodes_external_db_config_dict[
         'external_db_configuration'].keys()
     for path_key in external_db_keys:
-        assert(path_key in str(excinfo.value))
+        assert excinfo.match('.*{0}.*'.format(path_key))
 
 
 def test_validate_success_external_db(three_nodes_external_db_config_dict,
@@ -105,7 +103,6 @@ def test_validate_success_external_db(three_nodes_external_db_config_dict,
         'server_db_name': 'postgres',
         'server_username': 'user@user',
         'server_password': 'strongpassword',
-
         'cloudify_db_name': 'cloudify_db',
         'cloudify_username': 'cloudify@user',
         'cloudify_password': 'cloudify'
@@ -119,13 +116,11 @@ def test_validate_ldaps_and_not_ca(three_nodes_config_dict):
     # It's enough to test it only on the three nodes external db config,
     # since the nine nodes external db config uses the same logic.
     three_nodes_config_dict['ldap']['server'] = 'ldaps://192.0.2.45:636'
-    with pytest.raises(ClusterInstallError) as excinfo:
+    with pytest.raises(ClusterInstallError,
+                       match='.*ldaps.*certificate must be provided.*'):
         validate_config(config=three_nodes_config_dict,
                         using_three_nodes_cluster=True,
                         override=False)
-
-    assert('When using ldaps a CA certificate must be provided.'
-           in str(excinfo.value))
 
 
 def test_validate_not_ldaps_and_ca(three_nodes_config_dict, ca_path):
@@ -133,13 +128,12 @@ def test_validate_not_ldaps_and_ca(three_nodes_config_dict, ca_path):
     # since the nine nodes external db config uses the same logic.
     three_nodes_config_dict['ldap']['server'] = 'ldap://192.0.2.1:389'
     three_nodes_config_dict['ldap']['ca_cert'] = ca_path
-    with pytest.raises(ClusterInstallError) as excinfo:
+    with pytest.raises(
+            ClusterInstallError,
+            match='.*not using ldaps.*certificate must not be provided.*'):
         validate_config(config=three_nodes_config_dict,
                         using_three_nodes_cluster=True,
                         override=False)
-
-    assert('When not using ldaps a CA certificate must not be provided.'
-           in str(excinfo.value))
 
 
 def test_validate_ldaps_and_ca(three_nodes_config_dict, ca_path):
