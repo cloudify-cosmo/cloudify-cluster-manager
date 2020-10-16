@@ -1,0 +1,120 @@
+ssh_key_path: '' # Filled by the test
+ssh_user: 'centos'
+cloudify_license_path: '' # Filled by the test
+manager_rpm_download_link: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
+
+ldap:
+  server: ''
+  domain: ''
+  is_active_directory: ''
+  ca_cert: ''
+  username: ''
+  password: ''
+  dn_extra: ''
+
+ca_cert_path: ''
+
+load_balancer_ip: ''
+
+existing_vms:
+    manager-1:
+      private_ip: '192.0.2.0' # this value will not be tested
+      public_ip: '203.0.113.0' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    manager-2:
+      private_ip: '192.0.2.1' # this value will not be tested
+      public_ip: '203.0.113.1' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    manager-3:
+      private_ip: '192.0.2.2' # this value will not be tested
+      public_ip: '203.0.113.2' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    postgresql-1:
+      private_ip: '192.0.2.3' # this value will not be tested
+      public_ip: '203.0.113.3' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    postgresql-2:
+      private_ip: '192.0.2.4' # this value will not be tested
+      public_ip: '203.0.113.4' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    postgresql-3:
+      private_ip: '192.0.2.5' # this value will not be tested
+      public_ip: '203.0.113.5' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    rabbitmq-1:
+      private_ip: '192.0.2.6' # this value will not be tested
+      public_ip: '203.0.113.6' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    rabbitmq-2:
+      private_ip: '192.0.2.7' # this value will not be tested
+      public_ip: '203.0.113.7' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+    rabbitmq-3:
+      private_ip: '192.0.2.8' # this value will not be tested
+      public_ip: '203.0.113.8' # this value will not be tested
+      hostname: ''
+      cert_path: ''
+      key_path: ''
+      config_path: ''
+
+credentials:
+  manager:
+    admin_username: 'admin'
+    admin_password: ''
+
+  postgresql:
+    postgres_password: ''
+    cluster:
+      etcd:
+        cluster_token: ''
+        root_password: ''
+        patroni_password: ''
+      patroni:
+        rest_password: ''
+      postgres:
+        replicator_password: ''
+
+    db_monitoring:
+      username: ''
+      password: ''
+
+  rabbitmq:
+    username: ''
+    password: ''
+    erlang_cookie: ''
+
+  prometheus:
+    username: ''
+    password: ''

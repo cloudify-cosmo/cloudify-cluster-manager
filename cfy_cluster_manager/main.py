@@ -635,7 +635,8 @@ def _validate_external_db_config(config, override, errors_list):
 
     for key, value in external_db_config.items():
         _check_value_provided(external_db_config, key, errors_list)
-    _check_path(external_db_config, 'ca_path', errors_list)
+        if 'key' == 'ca_path':
+            _check_path(external_db_config, 'ca_path', errors_list)
 
 
 def _validate_ldap_certificate_setting(config, errors_list):
@@ -653,7 +654,7 @@ def _validate_ldap_certificate_setting(config, errors_list):
         _check_path(config.get('ldap'), 'ca_cert', errors_list)
 
 
-def _validate_config(config, using_three_nodes_cluster, override):
+def validate_config(config, using_three_nodes_cluster, override):
     errors_list = []
     _check_path(config, 'ssh_key_path', errors_list)
     _check_value_provided(config, 'ssh_user', errors_list)
@@ -870,7 +871,7 @@ def install(config_path, override, only_validate, verbose):
     config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
     config = get_dict_from_yaml(config_path)
     using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
-    _validate_config(config, using_three_nodes_cluster, override)
+    validate_config(config, using_three_nodes_cluster, override)
     if only_validate:
         logger.info('The configuration file at %s was validated '
                     'successfully.', config_path)
