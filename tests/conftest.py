@@ -12,6 +12,13 @@ def config_dir(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def cluster_manager_dir(tmp_path):
+    cluster_manager_dir = tmp_path / 'cloudify_cluster_manager'
+    cluster_manager_dir.mkdir()
+    return cluster_manager_dir
+
+
+@pytest.fixture(autouse=True)
 def ssh_key_path(config_dir):
     ssh_key_path = config_dir / 'key_file.pem'
     ssh_key_path.write_text(u'test_key_path')
@@ -26,19 +33,40 @@ def license_path(config_dir):
 
 
 @pytest.fixture(autouse=True)
-def ca_path(config_dir):
-    ca_path = config_dir / 'ca.pem'
-    ca_path.write_text(u'test_ca_path')
-    return str(ca_path)
-
-
-@pytest.fixture(autouse=True)
 def basic_config_dict(ssh_key_path, license_path):
     return {
         'ssh_key_path': ssh_key_path,
         'ssh_user': 'centos',
         'cloudify_license_path': license_path
     }
+
+
+@pytest.fixture()
+def tmp_certs_dir(tmp_path):
+    tmp_certs_dir = tmp_path / 'tmp_certs'
+    tmp_certs_dir.mkdir()
+    return tmp_certs_dir
+
+
+@pytest.fixture()
+def ca_path(tmp_certs_dir):
+    ca_path = tmp_certs_dir / 'ca.pem'
+    ca_path.write_text(u'test_ca_path')
+    return str(ca_path)
+
+
+@pytest.fixture()
+def ldap_ca_path(tmp_certs_dir):
+    ldap_ca_path = tmp_certs_dir / 'ldap_ca.pem'
+    ldap_ca_path.write_text(u'test_ldap_ca_path')
+    return str(ldap_ca_path)
+
+
+@pytest.fixture()
+def external_db_ca_path(tmp_certs_dir):
+    external_db_ca_path = tmp_certs_dir / 'external_db_ca.pem'
+    external_db_ca_path.write_text(u'test_external_db_ca_path')
+    return str(external_db_ca_path)
 
 
 @pytest.fixture()
