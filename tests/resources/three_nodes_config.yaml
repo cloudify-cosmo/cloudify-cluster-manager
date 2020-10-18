@@ -25,6 +25,7 @@ existing_vms:
       key_path: ''
       config_path:
         manager_config_path: ''
+        postgresql_config_path: ''
         rabbitmq_config_path: ''
 
     node-2:
@@ -35,6 +36,7 @@ existing_vms:
       key_path: ''
       config_path:
         manager_config_path: ''
+        postgresql_config_path: ''
         rabbitmq_config_path: ''
 
     node-3:
@@ -45,6 +47,7 @@ existing_vms:
       key_path: ''
       config_path:
         manager_config_path: ''
+        postgresql_config_path: ''
         rabbitmq_config_path: ''
 
 credentials:

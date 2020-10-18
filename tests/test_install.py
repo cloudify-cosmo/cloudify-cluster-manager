@@ -25,7 +25,7 @@ def mock_generate_certs():
 
 
 @pytest.fixture()
-def cluster_manager_certs_dir(cluster_manager_dir):
+def certs_dir(cluster_manager_dir):
     return cluster_manager_dir / cfy_cluster_manager.main.CERTS_DIR_NAME
 
 
@@ -34,8 +34,15 @@ def config_files_dir(cluster_manager_dir):
     return cluster_manager_dir / cfy_cluster_manager.main.CONFIG_FILES
 
 
+@pytest.fixture()
+def tmp_config_files_dir(tmp_path):
+    dir_path = tmp_path / 'config_files'
+    dir_path.mkdir()
+    return dir_path
+
+
 def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
-                                                 cluster_manager_certs_dir,
+                                                 certs_dir,
                                                  tmp_certs_dir,
                                                  ca_path):
     """Testing if the install code uses the provided certificates.
@@ -59,19 +66,18 @@ def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
         node_dict['cert_path'] = str(cert_path)
         node_dict['key_path'] = str(key_path)
 
-    with mock.patch('cfy_cluster_manager.main.CERTS_DIR',
-                    str(cluster_manager_certs_dir)):
-        _generate_three_nodes_cluster_dict(three_nodes_config_dict)
-
     with mock.patch('cfy_cluster_manager.main.CA_PATH',
-                    str(cluster_manager_certs_dir / 'ca.pem')):
-        _handle_certificates(three_nodes_config_dict, None)
+                    str(certs_dir / 'ca.pem')), \
+            mock.patch('cfy_cluster_manager.main.CERTS_DIR', str(certs_dir)):
+        cluster_dict = _generate_three_nodes_cluster_dict(
+            three_nodes_config_dict)
+        _handle_certificates(three_nodes_config_dict, cluster_dict)
 
-    _assert_created_certs(tmp_certs_dir, cluster_manager_certs_dir)
+    _assert_created_certs(tmp_certs_dir, certs_dir)
 
 
 def test_nine_nodes_using_provided_certificates(nine_nodes_config_dict,
-                                                cluster_manager_certs_dir,
+                                                certs_dir,
                                                 tmp_certs_dir,
                                                 ca_path):
     """Testing if the install code uses the provided certificates.
@@ -87,15 +93,13 @@ def test_nine_nodes_using_provided_certificates(nine_nodes_config_dict,
             val_path.write_text(u'{0}_{1}'.format(node_name, val))
             node_dict['{0}_path'.format(val)] = str(val_path)
 
-    with mock.patch('cfy_cluster_manager.main.CERTS_DIR',
-                    str(cluster_manager_certs_dir)):
-        _generate_general_cluster_dict(nine_nodes_config_dict)
-
     with mock.patch('cfy_cluster_manager.main.CA_PATH',
-                    str(cluster_manager_certs_dir / 'ca.pem')):
-        _handle_certificates(nine_nodes_config_dict, None)
+                    str(certs_dir / 'ca.pem')), \
+            mock.patch('cfy_cluster_manager.main.CERTS_DIR', str(certs_dir)):
+        cluster_dict = _generate_general_cluster_dict(nine_nodes_config_dict)
+        _handle_certificates(nine_nodes_config_dict, cluster_dict)
 
-    _assert_created_certs(tmp_certs_dir, cluster_manager_certs_dir)
+    _assert_created_certs(tmp_certs_dir, certs_dir)
 
 
 def test_credentials_randomly_generated(three_nodes_config_dict):
@@ -136,10 +140,10 @@ def test_ldap_in_config_file(three_nodes_config_dict,
                              config_files_dir,
                              ldap_ca_path,
                              tmp_certs_dir,
-                             cluster_manager_certs_dir):
+                             certs_dir):
     """Test if LDAP is configured properly in the manager config.yaml file."""
     # In this case, The three nodes and nine nodes logic is the same
-    cluster_manager_ldap_ca = str(cluster_manager_certs_dir / 'ldap_ca.pem')
+    cluster_manager_ldap_ca = str(certs_dir / 'ldap_ca.pem')
     ldap_dict = {
         'server': 'ldaps://192.0.2.12',
         'domain': 'test_domain',
@@ -159,21 +163,20 @@ def test_ldap_in_config_file(three_nodes_config_dict,
 
     ldap_dict['ca_cert'] = cluster_manager_ldap_ca
     assert manager_config['restservice']['ldap'] == ldap_dict
-    _assert_created_certs(tmp_certs_dir, cluster_manager_certs_dir)
+    _assert_created_certs(tmp_certs_dir, certs_dir)
 
 
 def test_extrnal_db_in_config_file(three_nodes_external_db_config_dict,
                                    config_files_dir,
                                    external_db_ca_path,
                                    tmp_certs_dir,
-                                   cluster_manager_certs_dir):
+                                   certs_dir):
     """
     Test if the external_db is configured properly in the manager
     config.yaml file.
     """
     # In this case, The three nodes and nine nodes logic is the same
-    cluster_manager_external_db_ca = str(
-        cluster_manager_certs_dir / 'external_db_ca.pem')
+    cluster_manager_external_db_ca = str(certs_dir / 'external_db_ca.pem')
     external_db_config = {
         'host': 'user.postgres.database.azure.example',
         'ca_path': external_db_ca_path,
@@ -197,7 +200,39 @@ def test_extrnal_db_in_config_file(three_nodes_external_db_config_dict,
     external_db_config.update({'ssl_client_verification': False,
                                'ca_path': cluster_manager_external_db_ca})
     assert manager_config['postgresql_client'] == external_db_config
-    _assert_created_certs(tmp_certs_dir, cluster_manager_certs_dir)
+    _assert_created_certs(tmp_certs_dir, certs_dir)
+
+
+def test_three_nodes_using_provided_config_paths(three_nodes_config_dict,
+                                                 tmp_config_files_dir,
+                                                 config_files_dir):
+    for node_name, node_dict in three_nodes_config_dict[
+            'existing_vms'].items():
+        node_num = node_name.split('-')[1]
+        for service in 'postgresql', 'rabbitmq', 'manager':
+            service_name = '{0}-{1}'.format(service, node_num)
+            config_path = tmp_config_files_dir / '{0}_config.yaml'.format(
+                            service_name)
+            config_path.write_text(u'{0}'.format(node_name))
+            config_name = '{0}_config_path'.format(service)
+            node_dict['config_path'][config_name] = str(config_path)
+
+    _create_config_files(three_nodes_config_dict, config_files_dir)
+    _assert_created_config_files(tmp_config_files_dir, config_files_dir)
+
+
+def test_nine_nodes_using_provided_config_paths(nine_nodes_config_dict,
+                                                tmp_config_files_dir,
+                                                config_files_dir):
+    for node_name, node_dict in nine_nodes_config_dict['existing_vms'].items():
+        config_path = tmp_config_files_dir / '{0}_config.yaml'.format(
+                        node_name)
+        config_path.write_text(u'{0}'.format(node_name))
+        node_dict['config_path'] = str(config_path)
+
+    _create_config_files(nine_nodes_config_dict, config_files_dir,
+                         three_nodes=False)
+    _assert_created_config_files(tmp_config_files_dir, config_files_dir)
 
 
 def _assert_manager_config_credentials(config_files_dir, credentials):
@@ -267,11 +302,15 @@ def _get_instance_config(instance, config_files_dir):
         return yaml.load(instance_config, yaml.Loader)
 
 
-def _create_config_files(config_dict, config_files_dir, credentials=None):
+def _create_config_files(config_dict, config_files_dir, credentials=None,
+                         three_nodes=True):
     if not credentials:
         credentials = config_dict.get('credentials')
         _populate_credentials(credentials)
-    instnaces_dict = _generate_three_nodes_cluster_dict(config_dict)
+    instnaces_dict = (_generate_three_nodes_cluster_dict(config_dict)
+                      if three_nodes else
+                      _generate_general_cluster_dict(config_dict))
+
     with mock.patch('cfy_cluster_manager.main.CONFIG_FILES_DIR',
                     str(config_files_dir)):
         _prepare_config_files(instnaces_dict, credentials, config_dict)
@@ -302,7 +341,13 @@ def _assert_dict_values_not_none(tested_dict):
             assert value is not None
 
 
-def _assert_created_certs(tmp_certs_dir, cluster_manager_certs_dir):
+def _assert_created_certs(tmp_certs_dir, certs_dir):
     for original_path in tmp_certs_dir.iterdir():
-        tested_path = cluster_manager_certs_dir / original_path.name
+        tested_path = certs_dir / original_path.name
+        assert filecmp.cmp(str(original_path), str(tested_path))
+
+
+def _assert_created_config_files(tmp_config_files_dir, config_files_dir):
+    for original_path in tmp_config_files_dir.iterdir():
+        tested_path = config_files_dir / original_path.name
         assert filecmp.cmp(str(original_path), str(tested_path))
