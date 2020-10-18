@@ -141,7 +141,7 @@ def test_ldap_in_config_file(three_nodes_config_dict,
     # In this case, The three nodes and nine nodes logic is the same
     cluster_manager_ldap_ca = str(cluster_manager_certs_dir / 'ldap_ca.pem')
     ldap_dict = {
-        'server': 'ldaps://1.1.1.1',
+        'server': 'ldaps://192.0.2.12',
         'domain': 'test_domain',
         'is_active_directory': True,
         'ca_cert': ldap_ca_path,
@@ -175,7 +175,7 @@ def test_extrnal_db_in_config_file(three_nodes_external_db_config_dict,
     cluster_manager_external_db_ca = str(
         cluster_manager_certs_dir / 'external_db_ca.pem')
     external_db_config = {
-        'host': 'user.postgres.database.azure.com',
+        'host': 'user.postgres.database.azure.example',
         'ca_path': external_db_ca_path,
         'server_db_name': 'postgres',
         'server_username': 'user@user',
