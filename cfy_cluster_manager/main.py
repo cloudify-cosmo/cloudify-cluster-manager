@@ -551,7 +551,7 @@ def _validate_config_path(vm_name, config_path, errors_list):
     if exists(expanded_path):
         return expanded_path
     else:
-        errors_list.append('The config path {0} for {1} does not '
+        errors_list.append('The config path {0} of {1} does not '
                            'exist.'.format(expanded_path, vm_name))
 
 
