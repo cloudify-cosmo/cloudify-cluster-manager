@@ -12,6 +12,14 @@ def getClusterManagerPreRelease(String branchName='master'){
   """
 }
 
+def getUploadPath(){
+    if (env.BRANCH_NAME == 'master') {
+        return env.S3_DEV_RELEASE_PATH
+    } else {
+        return env.S3_BUILD_PATH
+    }
+}
+
 def buildClusterManagerRPM(String version, String prerelease, String branchName='master'){
   container('rpmbuild'){
     sh """
@@ -55,6 +63,7 @@ pipeline {
     PRERELEASE = getClusterManagerPreRelease("${env.BRANCH_NAME}").trim()
     S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}/${env.BUILD_NUMBER}"
     S3_RELEASE_PATH = "${env.PROJECT}/${env.VERSION}/ga-release"
+    S3_DEV_RELEASE_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-release"
   }
 
   stages{
@@ -138,7 +147,7 @@ pipeline {
       post {
         success {
           echo 'Upload artifacts to S3'
-          uploadToReleaseS3("${env.WORKSPACE}/rpm/","${env.S3_BUILD_PATH}")
+          uploadToReleaseS3("${env.WORKSPACE}/rpm/", getUploadPath())
         }
       }
     }
