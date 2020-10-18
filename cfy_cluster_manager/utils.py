@@ -77,7 +77,8 @@ def copy(source, destination):
 
 def move(source, destination):
     ensure_destination_dir_exists(destination)
-    sudo(['mv', source, destination])
+    sudo(['cp', source, destination])
+    sudo(['rm', source])
 
 
 class VM(object):
