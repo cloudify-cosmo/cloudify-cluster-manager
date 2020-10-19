@@ -63,11 +63,14 @@ class CfyNode(VM):
                                       key_file_path, username)
         self.name = node_name
         self.hostname = hostname
-        self.cert_path = cert_path
-        self.key_path = key_path
+        self.provided_cert_path = expanduser(cert_path) if cert_path else None
+        self.provided_key_path = expanduser(key_path) if key_path else None
+        self.cert_path = join(CERTS_DIR, node_name + '_cert.pem')
+        self.key_path = join(CERTS_DIR, node_name + '_key.pem')
         self.type, self.number = node_name.split('-')
         self.installed = False
-        self.provided_config_path = config_file_path
+        self.provided_config_path = (expanduser(config_file_path) if
+                                     config_file_path else None)
         self.config_path = join(
             BASE_CFY_DIR, '{}_config.yaml'.format(node_name))
         self.unit_name = SYSTEMD_RUN_UNIT_NAME.format(self.type)
@@ -397,21 +400,15 @@ def _get_external_db_config(config):
 
 def _get_cfy_node(config, node_dict, node_name, config_path,
                   validate_connection=True):
-    cert_path = join(CERTS_DIR, node_name + '_cert.pem')
-    key_path = join(CERTS_DIR, node_name + '_key.pem')
-    if _using_provided_certificates(config):
-        copy(expanduser(node_dict.get('cert_path')), cert_path)
-        copy(expanduser(node_dict.get('key_path')), key_path)
-
     new_vm = CfyNode(node_dict.get('private_ip'),
                      node_dict.get('public_ip'),
                      config.get('ssh_key_path'),
                      config.get('ssh_user'),
                      node_name,
                      node_dict.get('hostname'),
-                     cert_path,
-                     key_path,
-                     config_path)
+                     cert_path=node_dict.get('cert_path'),
+                     key_path=node_dict.get('key_path'),
+                     config_file_path=config_path)
     if validate_connection:
         logger.debug('Testing connection to %s', new_vm.private_ip)
         new_vm.test_connection()
@@ -470,7 +467,7 @@ def _create_cluster_install_directory():
     logger.info('Creating `{0}` directory'.format(DIR_NAME))
     if exists(CLUSTER_INSTALL_DIR):
         new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + DIR_NAME)
-        run(['mv', CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname)])
+        move(CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname))
 
     os.mkdir(CLUSTER_INSTALL_DIR)
 
@@ -724,6 +721,10 @@ def generate_config(output_path,
 def _handle_certificates(config, instances_dict):
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
+        for instances_list in instances_dict.values():
+            for instance in instances_list:
+                copy(instance.provided_cert_path, instance.cert_path)
+                copy(instance.provided_key_path, instance.key_path)
     else:
         _generate_certs(instances_dict)
 
