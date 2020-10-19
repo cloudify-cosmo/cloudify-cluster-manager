@@ -566,6 +566,12 @@ def _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list):
 
     if all(config_paths):
         for vm_name, vm_dict in existing_vms_dict.items():
+            if vm_dict.get('cert_path') or vm_dict.get('key_path'):
+                errors_list.append(
+                    'Certificate can not be specified for {0} because a '
+                    'config path was specified for it. If you wish to use '
+                    'your own config path, plase make sure the relevant '
+                    'certificates are on each VM.'.format(vm_name))
             if using_three_nodes:
                 for config_name, config_path in vm_dict['config_path'].items():
                     vm_dict['config_path'][config_name] = \
@@ -722,7 +728,21 @@ def generate_config(output_path,
                 output_path)
 
 
+def _using_provided_config_files(instances_dict):
+    """This function checks if config.yaml files were provided.
+
+    This function returns True if the first instance has a config.yaml file
+    provided, therefore it should be used only after the validations.
+    """
+    for instances_list in instances_dict.values():
+        for instance in instances_list:
+            return True if instance.provided_config_path else False  # explicit
+
+
 def _handle_certificates(config, instances_dict):
+    if _using_provided_config_files(instances_dict):
+        return
+
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
         for instances_list in instances_dict.values():

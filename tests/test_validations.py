@@ -144,3 +144,31 @@ def test_validate_ldaps_and_ca(three_nodes_config_dict, ca_path):
     validate_config(config=three_nodes_config_dict,
                     using_three_nodes_cluster=True,
                     override=False)
+
+
+def test_config_files_and_certificates(three_nodes_config_dict,
+                                       tmp_certs_dir,
+                                       tmp_config_files_dir):
+    """
+    Tests the validation that if config files were provided,
+    no certificates were provided also.
+    """
+    for i in range(1, 4):
+        node_name = 'node-{0}'.format(i)
+        config_file = tmp_config_files_dir / node_name
+        config_file.write_text(u'{0}'.format(node_name))
+        for service in 'manager', 'postgresql', 'rabbitmq':
+            three_nodes_config_dict['existing_vms'][node_name]['config_path'][
+                service+'_config_path'] = str(config_file)
+
+    cert_path = tmp_certs_dir / 'node-1_cert.pem'
+    cert_path.write_text(u'node-1_cert')
+    three_nodes_config_dict['existing_vms']['node-1']['cert_path'] = \
+        str(cert_path)
+
+    with pytest.raises(ClusterInstallError,
+                       match='.*Certificate can not be specified.*config '
+                             'path was specified.*'):
+        validate_config(config=three_nodes_config_dict,
+                        using_three_nodes_cluster=True,
+                        override=False)

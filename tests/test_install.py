@@ -24,6 +24,11 @@ def mock_generate_certs():
     cfy_cluster_manager.main._generate_certs = mock.Mock(return_value=None)
 
 
+def mock_using_provided_config_files():
+    cfy_cluster_manager.main._using_provided_config_files = mock.Mock(
+        return_value=False)
+
+
 @pytest.fixture()
 def certs_dir(cluster_manager_dir):
     return cluster_manager_dir / cfy_cluster_manager.main.CERTS_DIR_NAME
@@ -32,13 +37,6 @@ def certs_dir(cluster_manager_dir):
 @pytest.fixture()
 def config_files_dir(cluster_manager_dir):
     return cluster_manager_dir / cfy_cluster_manager.main.CONFIG_FILES
-
-
-@pytest.fixture()
-def tmp_config_files_dir(tmp_path):
-    dir_path = tmp_path / 'config_files'
-    dir_path.mkdir()
-    return dir_path
 
 
 def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
@@ -155,6 +153,7 @@ def test_ldap_in_config_file(three_nodes_config_dict,
     }
     three_nodes_config_dict.update({'ldap': copy.deepcopy(ldap_dict)})
 
+    mock_using_provided_config_files()
     with mock.patch('cfy_cluster_manager.main.LDAP_CA_PATH',
                     cluster_manager_ldap_ca):
         _handle_certificates(three_nodes_config_dict, None)
@@ -190,6 +189,7 @@ def test_extrnal_db_in_config_file(three_nodes_external_db_config_dict,
     three_nodes_external_db_config_dict.update(
         {'external_db_configuration': copy.deepcopy(external_db_config)})
 
+    mock_using_provided_config_files()
     with mock.patch('cfy_cluster_manager.main.EXTERNAL_DB_CA_PATH',
                     cluster_manager_external_db_ca):
         _handle_certificates(three_nodes_external_db_config_dict, None)

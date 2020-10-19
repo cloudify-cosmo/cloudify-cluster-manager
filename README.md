@@ -125,7 +125,10 @@ The `load_balancer_ip` value is used in the different config.yaml files for the 
 * If you wish to use your own config.yaml files for the different instances, you may 
 do so by specifying their path as the value of the `config_path` in each one of the instances (all of them).
 
-* Otherwise, preconfigured config.yaml files will be generated and used automatically. 
+* Otherwise, preconfigured config.yaml files will be generated and used automatically.
+
+* Note: If you use your own config files, you cannot specify the certificates' paths for the different instances. 
+Moreover, the ldap and external_db configurations will be ignored (if configured).
     
 #### Credentials
 * If you wish to use your own credentials, you can specify them in the `credentials` section.
