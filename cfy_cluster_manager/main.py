@@ -36,6 +36,7 @@ CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 CA_PATH = join(CERTS_DIR, 'ca.pem')
 EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
+LDAP_CA_PATH = join(CERTS_DIR, 'ldap_ca.pem')
 
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
 CLUSTER_CONFIG_FILES_DIR = pkg_resources.resource_filename(
@@ -176,6 +177,8 @@ def _prepare_manager_config_files(template,
     if external_db_config:
         external_db_config.update({'ssl_client_verification': False,
                                    'ca_path': EXTERNAL_DB_CA_PATH})
+    if ldap_configuration:
+        ldap_configuration.update({'ca_cert': LDAP_CA_PATH})
 
     for node in instances_dict['manager']:
         if node.provided_config_path:
@@ -208,11 +211,10 @@ def _create_config_file(node, rendered_data=None):
 
 
 def _prepare_config_files(instances_dict, credentials, config):
-    os.mkdir(join(CLUSTER_INSTALL_DIR, 'config_files'))
+    os.mkdir(CONFIG_FILES_DIR)
     templates_env = Environment(
-        loader=FileSystemLoader(
-            pkg_resources.resource_filename(
-                'cfy_cluster_manager', 'config_files_templates')))
+        loader=FileSystemLoader(pkg_resources.resource_filename(
+            'cfy_cluster_manager', 'config_files_templates')))
     raw_ldap_configuration = config.get('ldap', {})
     ldap_configuration = (raw_ldap_configuration if
                           raw_ldap_configuration.get('server') else None)
@@ -437,7 +439,9 @@ def _get_instances_ordered_dict(config):
 def _generate_three_nodes_cluster_dict(config):
     """Going over the existing_vms list and "replicating" each instance X3."""
     instances_dict = _get_instances_ordered_dict(config)
-    existing_nodes_list = config.get('existing_vms').values()
+    raw_existing_nodes_list = sorted(config.get('existing_vms').items(),
+                                     key=lambda x: x[0])
+    existing_nodes_list = [node[1] for node in raw_existing_nodes_list]
     validate_connection = True
     for node_type in instances_dict:
         for i, node_dict in enumerate(existing_nodes_list):
@@ -731,6 +735,10 @@ def _handle_certificates(config, instances_dict):
     external_db_config = _get_external_db_config(config)
     if external_db_config:
         copy(external_db_config.get('ca_path'), EXTERNAL_DB_CA_PATH)
+
+    ldap_ca = config['ldap'].get('ca_cert')
+    if ldap_ca:
+        copy(ldap_ca, LDAP_CA_PATH)
 
 
 def _previous_installation(instances_dict):

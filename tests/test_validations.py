@@ -94,12 +94,12 @@ def test_validate_external_db_paths(three_nodes_external_db_config_dict):
 
 
 def test_validate_success_external_db(three_nodes_external_db_config_dict,
-                                      ca_path):
+                                      external_db_ca_path):
     # It's enough to test it only on the three nodes external db config,
     # since the nine nodes external db config uses the same logic.
     three_nodes_external_db_config_dict['external_db_configuration'] = {
         'host': 'user.postgres.database.azure.com',
-        'ca_path': ca_path,
+        'ca_path': external_db_ca_path,
         'server_db_name': 'postgres',
         'server_username': 'user@user',
         'server_password': 'strongpassword',
