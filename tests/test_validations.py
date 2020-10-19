@@ -1,7 +1,7 @@
 import pytest
 
 from cfy_cluster_manager.main import validate_config
-from cfy_cluster_manager.utils import ClusterInstallError, ValidationError
+from cfy_cluster_manager.utils import ClusterInstallError
 
 
 def test_validate_provided_paths(three_nodes_config_dict):

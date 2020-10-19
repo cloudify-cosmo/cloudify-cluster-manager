@@ -740,6 +740,9 @@ def _using_provided_config_files(instances_dict):
 
 
 def _handle_certificates(config, instances_dict):
+    if _using_provided_config_files(instances_dict):
+        return
+
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
         for instances_list in instances_dict.values():
@@ -747,8 +750,7 @@ def _handle_certificates(config, instances_dict):
                 copy(instance.provided_cert_path, instance.cert_path)
                 copy(instance.provided_key_path, instance.key_path)
     else:
-        if not _using_provided_config_files(instances_dict):
-            _generate_certs(instances_dict)
+        _generate_certs(instances_dict)
 
     external_db_config = _get_external_db_config(config)
     if external_db_config:
