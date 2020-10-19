@@ -49,6 +49,13 @@ def tmp_certs_dir(tmp_path):
 
 
 @pytest.fixture()
+def tmp_config_files_dir(tmp_path):
+    dir_path = tmp_path / 'config_files'
+    dir_path.mkdir()
+    return dir_path
+
+
+@pytest.fixture()
 def ca_path(tmp_certs_dir):
     ca_path = tmp_certs_dir / 'ca.pem'
     ca_path.write_text(u'test_ca_path')
