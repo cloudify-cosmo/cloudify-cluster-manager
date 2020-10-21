@@ -112,7 +112,6 @@ def test_credentials_randomly_generated(three_nodes_config_dict):
     chosen_keys = [
         ('rabbitmq', 'username'),
         ('postgresql', 'cluster', 'etcd', 'cluster_token'),
-        ('postgresql', 'db_monitoring', 'username'),
         ('prometheus', 'password')
     ]
     credentials_dict = three_nodes_config_dict.get('credentials')
@@ -268,9 +267,6 @@ def _assert_postgresql_config_credentials(config_files_dir, credentials):
 
     assert (credentials['postgresql']['cluster'].items() <=
             postgresql_config['postgresql_server']['cluster'].items())
-
-    assert (credentials['postgresql']['db_monitoring'].items() <=
-            postgresql_config['postgresql_server']['db_monitoring'].items())
 
     assert (postgresql_config['prometheus']['credentials']['username'] ==
             credentials['prometheus']['username'])
