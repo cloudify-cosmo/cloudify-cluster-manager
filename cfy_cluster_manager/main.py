@@ -968,7 +968,7 @@ def add_config_arg(parser):
     parser.add_argument(
         '--config-path',
         action='store',
-        help='The completed cluster configuration file. default: '
+        help='The completed cluster configuration file. Default: '
              './{0}'.format(CLUSTER_CONFIG_FILE_NAME)
     )
 
@@ -988,7 +988,7 @@ def main():
         '-o', '--output',
         action='store',
         help='The local path to save the cluster install configuration file '
-             'to. default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
+             'to. Default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
 
     exclusive_options = generate_config_args.add_mutually_exclusive_group()
 
