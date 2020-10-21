@@ -43,7 +43,7 @@ def buildClusterManagerRPM(String version, String prerelease, String branchName=
 pipeline {
   agent {
     kubernetes {
-      label 'cloudify-cluster-manager'
+      label 'cloudify-cluster-manager-label'
       defaultContainer 'jnlp'
       yamlFile 'jenkins/build-pod.yaml'
     }
