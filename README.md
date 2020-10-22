@@ -1,12 +1,16 @@
-# cloudify-cluster-manager
-> Installing a Cloudify cluster using existing VMs
+# Cloudify Cluster Manager
+The purpose of the Cloudify Cluster Manager package is to automate the procedure of installing a Cloudify
+cluster on existing VMs. The following article will guide you through the different steps of 
+easily installing a Cloudify cluster on either three or nine VMs.
 
 &nbsp;
 ## Table of Contents
 * [Installation](#installation)
     * [Choosing a cluster configuration](#choosing-a-cluster-configuration)
-    * [Installing required packages](#installing-required-packages)
-* [Usage](#usage)
+    * [Installing the Cloudify Cluster Manager package](#installing-the-cloudify-cluster-manager-package)
+        * [Installing using an RPM](#installing-using-an-rpm)
+        * [Installing using pip install](#installing-using-pip-install)
+* [Using the Cloudify Cluster Manager package](#using-the-cloudify-cluster-manager-package)
     * [Generating a configuration file](#generating-a-configuration-file)
     * [Filling in the configuration file](#filling-in-the-configuration-file)
     * [Installing a Cloudify cluster](#installing-a-cloudify-cluster)
@@ -17,63 +21,54 @@
 ## Installation 
 
 ### Choosing a cluster configuration
-In order to use the cloudify-cluster-manager package you would have to prepare your cluster 
-environment in advance. The code supports all cloud providers and the following configurations:
+Before using the Cloudify Cluster Manager package you must prepare a set of VMs for your cluster. 
+The Cloudify Cluster Manager package supports all cloud providers and the following configurations:
 * Nine VMs. 
 * Three VMs. 
 * Six VMs with an external DB. 
 * Three VMs with an external DB.
 
-Please follow the [prerequisites and sizing guidelines on Cloudify documentation](https://docs.cloudify.co/latest/install_maintain/installation/prerequisites/#cloudify-cluster)
-for further instructions.
+Please follow the [prerequisites and sizing guidelines on Cloudify documentation](https://docs.cloudify.co/latest/install_maintain/installation/prerequisites/#cloudify-cluster) 
+and generate the required number of VMs according to the mentioned spec. You should also prepare a load balancer to distribute the load over the managers.
 
 ---
 **NOTE**
-1. The code currently works only with CentOS or RHEL OS.
-2. You may use a load-balancer in the cluster configuration, but it **won't** be installed 
-as part of the cluster installation.
+
+1. The Cloudify Cluster Manager package is currently supported over CentOS or RHEL OS.
+2. A load-balancer is required for load distribution over the managers. 
+The setup will expect a load balancer address. The Cloudify Cluster Manager package does not install the load balancer.
 ---
 
 &nbsp;
-### Installing required packages
-You can run the code from one of the cluster's VMs, or from a different host in the 
-cluster network. Please run the following commands on the host you chose:
+### Installing the Cloudify Cluster Manager package
+You can run the Cloudify Cluster Manager package from one of the cluster's VMs, or from a different host in the 
+cluster network. You can install the package either by using an RPM or by using `pip install`: 
 
-```bash
-# Cloning this repo
-sudo yum install -y git
-git clone https://github.com/cloudify-cosmo/cloudify-cluster-manager.git
-
-# Installing python3 and creating a virtual environment
-sudo yum install -y python3
-python3 -m venv python3-virtualenv
-source python3-virtualenv/bin/activate
-
-# Installing pip and setuptools
-sudo yum install -y epel-release
-sudo yum install -y python-pip
-sudo pip install --upgrade pip
-sudo pip install --upgrade setuptools
-
-# Installing cloudify-cluster-manager
-pip install -e cloudify-cluster-manager
+#### Installing using an RPM
+Run the following command:
+```bash 
+sudo yum install -y https://cloudify-release-eu.s3-eu-west-1.amazonaws.com/cloudify/cloudify-cluster-manager/0.0.1/ga-release/cloudify-cluster-manager-0.0.1-.dev1.el7.x86_64.rpm
 
 # Installing haveged to avoid hanging executions
 sudo yum install -y haveged 
 sudo systemctl start haveged
 ```
 
-Once you're done running the commands above, make sure you are on the python3-virtualenv. 
-If not, you can run:
- 
+#### Installing using pip install
 ```bash
-source python3-virtualenv/bin/activate
+pip install cloudify-cluster-manager
+
+# Installing haveged to avoid hanging executions
+sudo yum install -y haveged 
+sudo systemctl start haveged
 ```
 
+
 &nbsp;
-## Usage
-There are three steps in running the code:
-1. Generating a cluster configuration file based on the cluster configuration.
+## Using the Cloudify Cluster Manager package
+Once the VMs are ready, using the Cloudify Cluster Manager package to build the cluster consists of three steps:
+
+1. Generating a cluster configuration file template based on the cluster topology you wish to deploy.
 2. Filling in the generated file with the relevant information. 
 3. Running the cluster installation based on the completed configuration file.
 
@@ -106,8 +101,8 @@ cfy_cluster_manager generate-config [OPTIONS]
 ### Filling in the configuration file 
 
 #### General Note
-Fill in the information according to the comments in the file itself. Please, do not
-delete anything from it.
+Fill in the information according to the comments in the file itself. 
+**NOTE!** Do not delete anything from the file.
 
 #### Load-balancer 
 As mentioned before, a load-balancer is not installed as part of the cluster installation. 
@@ -127,13 +122,13 @@ do so by specifying their path as the value of the `config_path` in each one of 
 
 * Otherwise, preconfigured config.yaml files will be generated and used automatically.
 
-* Note: If you use your own config files, you cannot specify the certificates' paths for the different instances. 
-Moreover, the ldap and external_db configurations will be ignored (if configured).
+* **Note**: If you use your own config files, you cannot specify the certificates' paths for the different instances. 
+Moreover, the ldap, external_db, and credentials sections in the configuration file will be ignored.
     
 #### Credentials
 * If you wish to use your own credentials, you can specify them in the `credentials` section.
 
-* Unfilled credentials will be generated and used by the code. The generated credentials 
+* Unfilled credentials will be generated and used by the Cloudify Cluster Manager package. The generated credentials 
 are random. 
 
 * **WARNING:** At the end of the installation, a file named `secret_credentials_file.yaml` will be created in the current directory.
@@ -180,7 +175,8 @@ cfy_cluster_manager remove [OPTIONS]
 
 &nbsp;
 ## Fault tolerance mechanisms
-The code has a few mechanisms to handle errors:
+The Cloudify Cluster Manager package has a few mechanisms to handle errors:
+
 * The configuration file is validated before it is being used.
  
 * The connection to each instance is tested before the installation starts.
@@ -190,11 +186,13 @@ is interrupted, the installation keeps on running because it's configured as a c
 
 * In case of a recoverable error during the installation, you can just run the `cfy_cluster_manager install` command again.
 The installation process would:
+
     1. Go over the instances and check if they were installed successfully. 
     2. Once it gets to the failed instance, it would remove the failed installation, and continue the installation from there.
 
 * In case of an unrecoverable error during the installation, you can run it again using: `cfy_manager install --override`.  
 This command would: 
+
     1. Go over the instances and remove Cloudify from them (including the RPM). 
     2. Run the installation process from the start.
 
