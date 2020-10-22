@@ -168,7 +168,7 @@ pipeline {
       steps {
         echo 'Upload Cloudify Cluster Manager package to PyPI'
         build job: 'upload-to-pypi', parameters: [
-          string(name: 'BRANCH', value: "${env.BRANCH}"),
+          string(name: 'BRANCH', value: "change-pypi-build-to-python3"),
           string(name: 'GITHUB_PROJECT_URL', value: "https://github.com/cloudify-cosmo/cloudify-cluster-manager.git"),
           string(name: 'BUILD_BRANCH', value: "change-pypi-build-to-python3"),
           booleanParam(name: 'VALIDATE_PACKAGE', value: true)
