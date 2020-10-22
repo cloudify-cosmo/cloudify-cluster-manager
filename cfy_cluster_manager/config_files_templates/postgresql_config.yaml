@@ -26,8 +26,6 @@ postgresql_server:
     postgres:
       replicator_password: {{ creds.postgresql.cluster.postgres.replicator_password }}
 
-  db_monitoring: {{ creds.postgresql.db_monitoring }}
-
 
 prometheus:
   credentials:

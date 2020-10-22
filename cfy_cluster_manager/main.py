@@ -740,9 +740,6 @@ def _using_provided_config_files(instances_dict):
 
 
 def _handle_certificates(config, instances_dict):
-    if _using_provided_config_files(instances_dict):
-        return
-
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
         for instances_list in instances_dict.values():
@@ -920,8 +917,9 @@ def install(config_path, override, only_validate, verbose):
         copy(config.get('cloudify_license_path'),
              join(CLUSTER_INSTALL_DIR, 'license.yaml'))
         _install_cloudify_locally(rpm_download_link)
-        _handle_certificates(config, instances_dict)
-        credentials = _handle_credentials(config.get('credentials'))
+        if not _using_provided_config_files(instances_dict):
+            _handle_certificates(config, instances_dict)
+            credentials = _handle_credentials(config.get('credentials'))
         _prepare_config_files(instances_dict, credentials, config)
 
     _install_instances(instances_dict, using_three_nodes_cluster,
@@ -970,7 +968,7 @@ def add_config_arg(parser):
     parser.add_argument(
         '--config-path',
         action='store',
-        help='The completed cluster configuration file. default: '
+        help='The completed cluster configuration file. Default: '
              './{0}'.format(CLUSTER_CONFIG_FILE_NAME)
     )
 
@@ -990,7 +988,7 @@ def main():
         '-o', '--output',
         action='store',
         help='The local path to save the cluster install configuration file '
-             'to. default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
+             'to. Default: ./{0}'.format(CLUSTER_CONFIG_FILE_NAME))
 
     exclusive_options = generate_config_args.add_mutually_exclusive_group()
 
