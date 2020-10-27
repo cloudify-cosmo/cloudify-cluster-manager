@@ -828,7 +828,7 @@ def _remove_cloudify_installation(instance, verbose):
         for cert_path in certs_paths_list:
             full_path = join(certs_dir_path, cert_path)
             if instance.file_exists(full_path):
-                new_path = join(BASE_CFY_DIR, timestamp + cert_path)
+                new_path = join(certs_dir_path, timestamp + cert_path)
                 instance.run_command(
                     'mv {0} {1}'.format(full_path, new_path), use_sudo=True)
 
