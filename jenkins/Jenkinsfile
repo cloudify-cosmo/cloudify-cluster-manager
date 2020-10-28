@@ -43,9 +43,9 @@ def buildClusterManagerRPM(String version, String prerelease, String branchName=
 pipeline {
   agent {
     kubernetes {
-      label 'cluster-manager-${env.BUILD_NUMBER}'
-      defaultContainer 'jnlp'
-      yamlFile 'jenkins/build-pod.yaml'
+      label "cluster-manager-${env.BUILD_NUMBER}"
+      defaultContainer "jnlp"
+      yamlFile "jenkins/build-pod.yaml"
     }
   }
 
