@@ -18,7 +18,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-cluster-manager',
-    version='1.0',
+    version='1.0.1',
     author='Cloudify',
     author_email='cosmo-admin@cloudify.co',
     packages=['cfy_cluster_manager'],
