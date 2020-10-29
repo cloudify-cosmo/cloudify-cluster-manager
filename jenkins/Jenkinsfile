@@ -5,13 +5,6 @@ def getClusterManagerVersion(String branchName='master'){
   """
 }
 
-def getClusterManagerPreRelease(String branchName='master'){
-  sh returnStdout:true, script: """
-    eval "\$(curl 'https://raw.githubusercontent.com/cloudify-cosmo/cloudify-cluster-manager/${branchName}/packaging/version_info')"
-    echo "\$CLOUDIFY_CLUSTER_MANAGER_PACKAGE_RELEASE"
-  """
-}
-
 def getUploadPath(){
     if (env.BRANCH_NAME == 'master') {
         return env.S3_DEV_RELEASE_PATH
@@ -60,7 +53,7 @@ pipeline {
     BRANCH = "${env.BRANCH_NAME}"
     PROJECT = "cloudify-cluster-manager"
     VERSION=getClusterManagerVersion("${env.BRANCH_NAME}").trim()
-    PRERELEASE = getClusterManagerPreRelease("${env.BRANCH_NAME}").trim()
+    PRERELEASE = ".dev1"
     S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}/${env.BUILD_NUMBER}"
     S3_RELEASE_PATH = "${env.PROJECT}/${env.VERSION}/ga-release"
     S3_DEV_RELEASE_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-release"
