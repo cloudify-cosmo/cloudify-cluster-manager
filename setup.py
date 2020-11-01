@@ -20,7 +20,7 @@ from setuptools import setup
 
 def get_readme_contents():
     this_directory = path.abspath(path.dirname(__file__))
-    with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    with open(path.join(this_directory, 'README.md')) as f:
         return f.read()
 
 
@@ -28,7 +28,7 @@ setup(
     name='cloudify-cluster-manager',
     long_description=get_readme_contents(),
     long_description_content_type='text/markdown',
-    version='1.0.1',
+    version='1.0.2',
     author='Cloudify',
     author_email='cosmo-admin@cloudify.co',
     packages=['cfy_cluster_manager'],
