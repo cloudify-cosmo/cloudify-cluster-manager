@@ -144,7 +144,7 @@ pipeline {
         }
       }
     }
-    stage('Rlease Cloudify Cluster Manager'){
+    stage('Release Cloudify Cluster Manager'){
       when { branch pattern: ".+-build", comparator: "REGEXP" }
       steps{
         buildClusterManagerRPM("${env.VERSION}", "ga", "${env.BRANCH}")
