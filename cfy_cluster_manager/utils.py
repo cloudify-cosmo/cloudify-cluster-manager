@@ -85,25 +85,32 @@ class VM(object):
                  private_ip,
                  public_ip,
                  key_file_path,
-                 username):
+                 username,
+                 password=None):
         self.username = username
         self.private_ip = private_ip
         self.public_ip = public_ip or private_ip
-        self.key_file_path = expanduser(key_file_path)
+        self.key_file_path = (expanduser(key_file_path) if key_file_path
+                              else None)
+        self.password = password if password else None
 
     def _get_connection(self):
+        connect_kwargs = ({'key_filename': [self.key_file_path]} if
+                          self.key_file_path else {'password': self.password})
         connection = Connection(
             host=self.private_ip, user=self.username, port=22,
-            connect_kwargs={'key_filename': [self.key_file_path]})
+            connect_kwargs=connect_kwargs)
         self.test_connection(connection)
 
         return connection
 
     def test_connection(self, connection=None):
         """ Connection is lazy, so **we** need to check it can be opened."""
+        connect_kwargs = ({'key_filename': [self.key_file_path]} if
+                          self.key_file_path else {'password': self.password})
         connection = connection or Connection(
             host=self.private_ip, user=self.username, port=22,
-            connect_kwargs={'key_filename': [self.key_file_path]})
+            connect_kwargs=connect_kwargs)
         try:
             connection.open()
         except (socket_error, AuthenticationException) as exc:

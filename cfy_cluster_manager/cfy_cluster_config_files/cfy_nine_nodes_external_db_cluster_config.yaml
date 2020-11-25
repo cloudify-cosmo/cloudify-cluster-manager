@@ -1,8 +1,11 @@
+# The VMs' SSH username, e.g. centos
+ssh_user: ''
+
+# The user's password for SSH connection. This cannot be used with ssh_key_path
+ssh_password: ''
+
 # Your private SSH key local path used to connect to all VMs
 ssh_key_path: ''
-
-# The VMs' SSH username, e.g. centos
-ssh_user: ''''
 
 # Local path to a valid Cloudify license
 cloudify_license_path: ''

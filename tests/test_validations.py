@@ -5,7 +5,7 @@ from cfy_cluster_manager.utils import ClusterInstallError
 
 
 def test_validate_provided_paths(three_nodes_config_dict):
-    # It's enough to test it only on the three nodes config, sice this section
+    # It's enough to test it only on the three nodes config, since this section
     # is generic to all config files.
     three_nodes_config_dict.update({
         'ssh_key_path': '',
@@ -169,6 +169,29 @@ def test_config_files_and_certificates(three_nodes_config_dict,
     with pytest.raises(ClusterInstallError,
                        match='.*Certificate can not be specified.*config '
                              'path was specified.*'):
+        validate_config(config=three_nodes_config_dict,
+                        using_three_nodes_cluster=True,
+                        override=False)
+
+
+def test_ssh_password_key_path_mutually_exc(three_nodes_config_dict):
+    validate_config(config=three_nodes_config_dict,
+                    using_three_nodes_cluster=True,
+                    override=False)
+
+    three_nodes_config_dict['ssh_password'] = 'test'
+    with pytest.raises(ClusterInstallError, match='.*only one of.*'):
+        validate_config(config=three_nodes_config_dict,
+                        using_three_nodes_cluster=True,
+                        override=False)
+
+    three_nodes_config_dict.pop('ssh_key_path')
+    validate_config(config=three_nodes_config_dict,
+                    using_three_nodes_cluster=True,
+                    override=False)
+
+    three_nodes_config_dict.pop('ssh_password')
+    with pytest.raises(ClusterInstallError, match='.*only one of.*'):
         validate_config(config=three_nodes_config_dict,
                         using_three_nodes_cluster=True,
                         override=False)
