@@ -55,13 +55,14 @@ class CfyNode(VM):
                  public_ip,
                  key_file_path,
                  username,
+                 password,
                  node_name,
                  hostname,
                  cert_path,
                  key_path,
                  config_file_path):
         super(CfyNode, self).__init__(private_ip, public_ip,
-                                      key_file_path, username)
+                                      key_file_path, username, password)
         self.name = node_name
         self.hostname = hostname
         self.provided_cert_path = expanduser(cert_path) if cert_path else None
@@ -406,6 +407,7 @@ def _get_cfy_node(config, node_dict, node_name, config_path,
                      node_dict.get('public_ip'),
                      config.get('ssh_key_path'),
                      config.get('ssh_user'),
+                     config.get('ssh_password'),
                      node_name,
                      node_dict.get('hostname'),
                      cert_path=node_dict.get('cert_path'),
@@ -661,10 +663,21 @@ def _validate_ldap_certificate_setting(config, errors_list):
         _check_path(config.get('ldap'), 'ca_cert', errors_list)
 
 
+def _validate_ssh_config(config, errors_list):
+    ssh_key_path = config.get('ssh_key_path')
+    ssh_password = config.get('ssh_password')
+    if (not ssh_key_path and not ssh_password) or \
+            (ssh_key_path and ssh_password):
+        errors_list.append(
+            'Please provide only one of ssh_key_path or ssh_password')
+    if config.get('ssh_key_path'):
+        _check_path(config, 'ssh_key_path', errors_list)
+    _check_value_provided(config, 'ssh_user', errors_list)
+
+
 def validate_config(config, using_three_nodes_cluster, override):
     errors_list = []
-    _check_path(config, 'ssh_key_path', errors_list)
-    _check_value_provided(config, 'ssh_user', errors_list)
+    _validate_ssh_config(config, errors_list)
     _check_path(config, 'cloudify_license_path', errors_list)
     _check_value_provided(config, 'manager_rpm_download_link', errors_list)
     _validate_existing_vms(config, using_three_nodes_cluster, errors_list)
