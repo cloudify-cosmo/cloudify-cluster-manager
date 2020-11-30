@@ -10,8 +10,8 @@ ssh_key_path: ''
 # Local path to a valid Cloudify license
 cloudify_license_path: ''
 
-# Manager RPM to install on the cluster instances
-manager_rpm_download_link: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
+# Manager RPM to install on the cluster instances. This can be a download link or a local path.
+manager_rpm_path: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
 
 # This section is only relevant if using LDAP
 ldap:
