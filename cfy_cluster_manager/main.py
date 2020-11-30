@@ -512,8 +512,9 @@ def _print_successful_installation_message(start_time, msg='installed'):
 def _install_cloudify_locally(rpm_path):
     if cloudify_rpm_is_installed():
         logger.info('Cloudify RPM is already installed')
-    if exists(rpm_path):
-        copy(rpm_path, RPM_PATH)
+    expanded_rpm_path = expanduser(rpm_path)
+    if exists(expanded_rpm_path):
+        copy(expanded_rpm_path, RPM_PATH)
     else:
         logger.info('Downloading Cloudify RPM from %s', rpm_path)
         run(['curl', '-o', RPM_PATH, rpm_path])
