@@ -11,7 +11,7 @@ def test_validate_provided_paths(three_nodes_config_dict):
         'ssh_key_path': '',
         'ssh_user': '',
         'cloudify_license_path': 'not_exist',
-        'manager_rpm_download_link': ''
+        'manager_rpm_path': ''
     })
     with pytest.raises(ClusterInstallError) as excinfo:
         validate_config(config=three_nodes_config_dict,
@@ -20,7 +20,7 @@ def test_validate_provided_paths(three_nodes_config_dict):
 
     assert all(path_key in str(excinfo.value) for path_key in
                ['ssh_key_path', 'ssh_user', 'cloudify_license_path',
-                'manager_rpm_download_link'])
+                'manager_rpm_path'])
 
 
 def test_validate_three_nodes_config_paths(three_nodes_config_dict):

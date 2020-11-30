@@ -29,8 +29,8 @@ DIR_NAME = 'cloudify_cluster_manager'
 RPM_NAME = 'cloudify-manager-install.rpm'
 TOP_DIR = '/tmp'
 
-RPM_PATH = join(TOP_DIR, RPM_NAME)
 CLUSTER_INSTALL_DIR = join(TOP_DIR, DIR_NAME)
+RPM_PATH = join(CLUSTER_INSTALL_DIR, RPM_NAME)
 CERTS_DIR = join(CLUSTER_INSTALL_DIR, CERTS_DIR_NAME)
 CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
@@ -243,11 +243,7 @@ def _prepare_config_files(instances_dict, credentials, config):
     )
 
 
-def _install_cloudify_remotely(instance, rpm_download_link):
-    logger.info('Downloading Cloudify RPM on %s from %s',
-                instance.name, rpm_download_link)
-    instance.run_command('curl -o {0} {1}'.format(
-        RPM_PATH, rpm_download_link), hide_stdout=True)
+def _install_cloudify_remotely(instance):
     logger.info('Installing Cloudify RPM on %s', instance.name)
     instance.run_command(
         'yum install -y {}'.format(RPM_PATH), use_sudo=True, hide_stdout=True)
@@ -346,10 +342,7 @@ def _verify_cloudify_installed_successfully(instance):
             'Service {} status is unknown'.format(instance.unit_name))
 
 
-def _install_instances(instances_dict,
-                       using_three_nodes,
-                       rpm_download_link,
-                       verbose):
+def _install_instances(instances_dict, using_three_nodes, verbose):
     for i, instance_type in enumerate(instances_dict):
         logger.info('installing %s instances', instance_type)
         three_nodes_not_first_round = using_three_nodes and i > 0
@@ -371,7 +364,7 @@ def _install_instances(instances_dict,
                                  CLUSTER_INSTALL_DIR,
                                  override=True)
                 if not _rpm_was_installed(instance):
-                    _install_cloudify_remotely(instance, rpm_download_link)
+                    _install_cloudify_remotely(instance)
 
             instance.run_command('cp {0} {1}'.format(
                 join(CONFIG_FILES_DIR, '{}_config.yaml'.format(instance.name)),
@@ -516,14 +509,18 @@ def _print_successful_installation_message(start_time, msg='installed'):
                 '{1} minutes and {2} seconds'.format(msg, int(m), int(s)))
 
 
-def _install_cloudify_locally(rpm_download_link):
+def _install_cloudify_locally(rpm_path):
     if cloudify_rpm_is_installed():
         logger.info('Cloudify RPM is already installed')
+    expanded_rpm_path = expanduser(rpm_path)
+    if exists(expanded_rpm_path):
+        copy(expanded_rpm_path, RPM_PATH)
     else:
-        logger.info('Downloading Cloudify RPM from %s', rpm_download_link)
-        run(['curl', '-o', RPM_PATH, rpm_download_link])
+        logger.info('Downloading Cloudify RPM from %s', rpm_path)
+        run(['curl', '-o', RPM_PATH, rpm_path])
         logger.info('Installing Cloudify RPM')
-        sudo(['yum', 'install', '-y', RPM_PATH])
+
+    sudo(['yum', 'install', '-y', RPM_PATH])
 
 
 def _check_path(dictionary, key, errors_list, vm_name=None):
@@ -679,7 +676,7 @@ def validate_config(config, using_three_nodes_cluster, override):
     errors_list = []
     _validate_ssh_config(config, errors_list)
     _check_path(config, 'cloudify_license_path', errors_list)
-    _check_value_provided(config, 'manager_rpm_download_link', errors_list)
+    _check_value_provided(config, 'manager_rpm_path', errors_list)
     _validate_existing_vms(config, using_three_nodes_cluster, errors_list)
     _validate_external_db_config(config, override, errors_list)
     _validate_ldap_certificate_setting(config, errors_list)
@@ -915,7 +912,6 @@ def install(config_path, override, only_validate, verbose):
         logger.info('The configuration file at %s was validated '
                     'successfully.', config_path)
         return
-    rpm_download_link = config.get('manager_rpm_download_link')
     instances_dict = (_generate_three_nodes_cluster_dict(config)
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
@@ -929,14 +925,13 @@ def install(config_path, override, only_validate, verbose):
         _create_cluster_install_directory()
         copy(config.get('cloudify_license_path'),
              join(CLUSTER_INSTALL_DIR, 'license.yaml'))
-        _install_cloudify_locally(rpm_download_link)
+        _install_cloudify_locally(config.get('manager_rpm_path'))
         if not _using_provided_config_files(instances_dict):
             _handle_certificates(config, instances_dict)
             credentials = _handle_credentials(config.get('credentials'))
         _prepare_config_files(instances_dict, credentials, config)
 
-    _install_instances(instances_dict, using_three_nodes_cluster,
-                       rpm_download_link, verbose)
+    _install_instances(instances_dict, using_three_nodes_cluster, verbose)
     _log_managers_connection_strings(instances_dict['manager'])
     if credentials:
         logger.warning('The credentials file was saved to %s. '
