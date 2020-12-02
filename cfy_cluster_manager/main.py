@@ -569,7 +569,7 @@ def _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list):
                 errors_list.append(
                     'Certificate can not be specified for {0} because a '
                     'config path was specified for it. If you wish to use '
-                    'your own config path, plase make sure the relevant '
+                    'your own config path, please make sure the relevant '
                     'certificates are on each VM.'.format(vm_name))
             if using_three_nodes:
                 for config_name, config_path in vm_dict['config_path'].items():
@@ -921,7 +921,7 @@ def install(config_path, override, only_validate, verbose):
         logger.info('Cloudify cluster was previously installed')
         _handle_installed_instances(instances_dict, override, verbose)
     if (not previous_installation) or override:
-        logger.info('Preparing cluster mangaer files')
+        logger.info('Preparing cluster manager files')
         _create_cluster_install_directory()
         copy(config.get('cloudify_license_path'),
              join(CLUSTER_INSTALL_DIR, 'license.yaml'))
