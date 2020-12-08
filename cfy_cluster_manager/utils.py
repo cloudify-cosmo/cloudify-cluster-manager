@@ -148,7 +148,7 @@ class VM(object):
                          local_path, remote_path, self.private_ip)
             connection.put(expanduser(local_path), remote_path)
 
-    def put_dir(self, local_dir_path, remote_dir_path, override=False):
+    def put_dir(self, local_dir_path, remote_dir_path):
         """Copy a local directory to a remote host.
 
         This function wraps the recursive function _put_dir(). This way
@@ -157,36 +157,17 @@ class VM(object):
         :param local_dir_path: An existing local directory path.
         :param remote_dir_path: A directory path on the remote host. If the
                                 path doesn't exist, it will be created.
-        :param override: If True and the remote directory path exists, then
-                         it will be deleted.
-                         If False and the remote directory path exists, then
-                         the files from the local directory will be added to
-                         the remote one.
-                         If the remote directory path doesn't exist, it
-                         doesn't have any effect.
         """
         if not isdir(local_dir_path):
             raise ClusterInstallError(
                 '{} is not a directory'.format(local_dir_path))
 
-        logger.debug('Copying %s to %s on host %s',
-                     local_dir_path, remote_dir_path, self.private_ip)
         if self.file_exists(remote_dir_path):
-            if override:
-                remote_tmp_dir = '/tmp/tmp_cluster_manager'
-                self.run_command('rm -rf {}'.format(remote_tmp_dir))
-                self.run_command('rm -rf {}'.format(remote_dir_path))
-                self._put_dir(self._get_connection(), local_dir_path,
-                              remote_tmp_dir)
-                self.run_command(
-                    'mv {0} {1}'.format(remote_tmp_dir, remote_dir_path),
-                    use_sudo=True)
-            else:
-                logger.info('Already prepared the cluster install files on '
-                            'this instance')
+            logger.debug('The files already exist on instance %s',
+                         self.private_ip)
         else:
-            logger.info('Copying the %s directory to %s',
-                        local_dir_path, self.private_ip)
+            logger.debug('Copying %s to %s on host %s',
+                         local_dir_path, remote_dir_path, self.private_ip)
             self._put_dir(self._get_connection(), local_dir_path,
                           remote_dir_path)
 

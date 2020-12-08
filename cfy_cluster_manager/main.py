@@ -352,8 +352,7 @@ def _install_instances(instances_dict, verbose, override):
                 continue
 
             logger.info('Installing %s', instance.name)
-            instance.put_dir(CLUSTER_INSTALL_DIR, CLUSTER_INSTALL_DIR,
-                             override=override)
+            instance.put_dir(CLUSTER_INSTALL_DIR, CLUSTER_INSTALL_DIR)
 
             if not _rpm_was_installed(instance):
                 _install_cloudify_remotely(instance)
@@ -833,6 +832,8 @@ def _remove_cloudify_installation(instance, verbose):
                 new_path = join(certs_dir_path, timestamp + cert_path)
                 instance.run_command(
                     'mv {0} {1}'.format(full_path, new_path), use_sudo=True)
+
+    instance.run_command('rm -rf {}'.format(CLUSTER_INSTALL_DIR))
 
     instance.installed = False
 
