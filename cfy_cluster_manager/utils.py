@@ -1,7 +1,6 @@
 import os
 import re
 import shlex
-import socket
 import subprocess
 from os.path import dirname, exists, expanduser, isdir, isfile, join
 from socket import error as socket_error
@@ -172,9 +171,24 @@ class VM(object):
 
         logger.debug('Copying %s to %s on host %s',
                      local_dir_path, remote_dir_path, self.private_ip)
-        if override:
-            self.run_command('rm -rf {}'.format(remote_dir_path))
-        self._put_dir(self._get_connection(), local_dir_path, remote_dir_path)
+        if self.file_exists(remote_dir_path):
+            if override:
+                remote_tmp_dir = '/tmp/tmp_cluster_manager'
+                self.run_command('rm -rf {}'.format(remote_tmp_dir))
+                self.run_command('rm -rf {}'.format(remote_dir_path))
+                self._put_dir(self._get_connection(), local_dir_path,
+                              remote_tmp_dir)
+                self.run_command(
+                    'mv {0} {1}'.format(remote_tmp_dir, remote_dir_path),
+                    use_sudo=True)
+            else:
+                logger.info('Already prepared the cluster install files on '
+                            'this instance')
+        else:
+            logger.info('Copying the %s directory to %s',
+                        local_dir_path, self.private_ip)
+            self._put_dir(self._get_connection(), local_dir_path,
+                          remote_dir_path)
 
     def _put_dir(self, connection, local_dir_path, remote_dir_path):
         connection.run('mkdir -p {}'. format(remote_dir_path), warn=True,
@@ -217,10 +231,6 @@ def yum_is_present():
         return True
     except ProcessExecutionError:
         return False
-
-
-def current_host_ip():
-    return socket.gethostbyname(socket.getfqdn())
 
 
 def openssl_command(file_name, file_format='x509', extra_flags_list=None):
