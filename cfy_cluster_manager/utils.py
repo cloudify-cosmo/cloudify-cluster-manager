@@ -1,7 +1,6 @@
 import os
 import re
 import shlex
-import socket
 import subprocess
 from os.path import dirname, exists, expanduser, isdir, isfile, join
 from socket import error as socket_error
@@ -149,7 +148,7 @@ class VM(object):
                          local_path, remote_path, self.private_ip)
             connection.put(expanduser(local_path), remote_path)
 
-    def put_dir(self, local_dir_path, remote_dir_path, override=False):
+    def put_dir(self, local_dir_path, remote_dir_path):
         """Copy a local directory to a remote host.
 
         This function wraps the recursive function _put_dir(). This way
@@ -158,23 +157,19 @@ class VM(object):
         :param local_dir_path: An existing local directory path.
         :param remote_dir_path: A directory path on the remote host. If the
                                 path doesn't exist, it will be created.
-        :param override: If True and the remote directory path exists, then
-                         it will be deleted.
-                         If False and the remote directory path exists, then
-                         the files from the local directory will be added to
-                         the remote one.
-                         If the remote directory path doesn't exist, it
-                         doesn't have any effect.
         """
         if not isdir(local_dir_path):
             raise ClusterInstallError(
                 '{} is not a directory'.format(local_dir_path))
 
-        logger.debug('Copying %s to %s on host %s',
-                     local_dir_path, remote_dir_path, self.private_ip)
-        if override:
-            self.run_command('rm -rf {}'.format(remote_dir_path))
-        self._put_dir(self._get_connection(), local_dir_path, remote_dir_path)
+        if self.file_exists(remote_dir_path):
+            logger.debug('The files already exist on instance %s',
+                         self.private_ip)
+        else:
+            logger.debug('Copying %s to %s on host %s',
+                         local_dir_path, remote_dir_path, self.private_ip)
+            self._put_dir(self._get_connection(), local_dir_path,
+                          remote_dir_path)
 
     def _put_dir(self, connection, local_dir_path, remote_dir_path):
         connection.run('mkdir -p {}'. format(remote_dir_path), warn=True,
@@ -217,10 +212,6 @@ def yum_is_present():
         return True
     except ProcessExecutionError:
         return False
-
-
-def current_host_ip():
-    return socket.gethostbyname(socket.getfqdn())
 
 
 def openssl_command(file_name, file_format='x509', extra_flags_list=None):

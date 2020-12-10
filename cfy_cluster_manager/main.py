@@ -16,9 +16,9 @@ from jinja2 import Environment, FileSystemLoader
 from .logger import get_cfy_cluster_manager_logger, setup_logger
 from .utils import (check_cert_key_match, check_cert_path, check_san,
                     check_signed_by, cloudify_rpm_is_installed,
-                    ClusterInstallError, copy, current_host_ip,
-                    get_dict_from_yaml, move, raise_errors_list, run,
-                    sudo, VM, write_dict_to_yaml_file, yum_is_present)
+                    ClusterInstallError, copy, get_dict_from_yaml, move,
+                    raise_errors_list, run, sudo, VM,
+                    write_dict_to_yaml_file, yum_is_present)
 
 logger = get_cfy_cluster_manager_logger()
 
@@ -342,10 +342,9 @@ def _verify_cloudify_installed_successfully(instance):
             'Service {} status is unknown'.format(instance.unit_name))
 
 
-def _install_instances(instances_dict, using_three_nodes, verbose):
+def _install_instances(instances_dict, verbose, override):
     for i, instance_type in enumerate(instances_dict):
         logger.info('installing %s instances', instance_type)
-        three_nodes_not_first_round = using_three_nodes and i > 0
         for instance in instances_dict[instance_type]:
             if instance.installed:
                 logger.info('Already installed %s (%s)',
@@ -353,18 +352,10 @@ def _install_instances(instances_dict, using_three_nodes, verbose):
                 continue
 
             logger.info('Installing %s', instance.name)
-            if (instance.private_ip == current_host_ip() or
-                    three_nodes_not_first_round):
-                logger.info('Already prepared the cluster install files on '
-                            'this instance')
-            else:
-                logger.info('Copying the %s directory to %s',
-                            CLUSTER_INSTALL_DIR, instance.name)
-                instance.put_dir(CLUSTER_INSTALL_DIR,
-                                 CLUSTER_INSTALL_DIR,
-                                 override=True)
-                if not _rpm_was_installed(instance):
-                    _install_cloudify_remotely(instance)
+            instance.put_dir(CLUSTER_INSTALL_DIR, CLUSTER_INSTALL_DIR)
+
+            if not _rpm_was_installed(instance):
+                _install_cloudify_remotely(instance)
 
             instance.run_command('cp {0} {1}'.format(
                 join(CONFIG_FILES_DIR, '{}_config.yaml'.format(instance.name)),
@@ -842,6 +833,8 @@ def _remove_cloudify_installation(instance, verbose):
                 instance.run_command(
                     'mv {0} {1}'.format(full_path, new_path), use_sudo=True)
 
+    instance.run_command('rm -rf {}'.format(CLUSTER_INSTALL_DIR))
+
     instance.installed = False
 
 
@@ -931,7 +924,7 @@ def install(config_path, override, only_validate, verbose):
             credentials = _handle_credentials(config.get('credentials'))
         _prepare_config_files(instances_dict, credentials, config)
 
-    _install_instances(instances_dict, using_three_nodes_cluster, verbose)
+    _install_instances(instances_dict, verbose, override)
     _log_managers_connection_strings(instances_dict['manager'])
     if credentials:
         logger.warning('The credentials file was saved to %s. '
