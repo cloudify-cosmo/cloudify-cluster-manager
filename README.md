@@ -146,7 +146,7 @@ cfy_cluster_manager install [OPTIONS]
 ```
 
 #### Options
-* `-- config-path` - The completed cluster configuration file path. 
+* `--config-path` - The completed cluster configuration file path. 
                      Default: ./cfy_cluster_config.yaml
 
 * `--override` - If specified, any previous installation of Cloudify on 
@@ -167,7 +167,7 @@ cfy_cluster_manager remove [OPTIONS]
 ```
 
 #### Options
-* `-- config-path` - The completed cluster configuration file path. 
+* `--config-path` - The completed cluster configuration file path. 
                      Default: ./cfy_cluster_config.yaml
 
 * `-v, --verbose` - Show verbose output.
