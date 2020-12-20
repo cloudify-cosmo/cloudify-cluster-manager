@@ -42,3 +42,5 @@ validations:
 services_to_install:
   - database_service
   - monitoring_service
+
+service_management: supervisord
