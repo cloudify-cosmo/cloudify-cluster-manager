@@ -77,6 +77,13 @@ class CfyNode(VM):
             BASE_CFY_DIR, '{}_config.yaml'.format(node_name))
         self.unit_name = SYSTEMD_RUN_UNIT_NAME.format(self.type)
 
+    def get_version(self):
+        # You need to verify cloudify-manager-install is installed
+        cfy_version_res = self.run_command(
+            'rpm --queryformat "%{VERSION}" -q cloudify-manager-install',
+            hide_stdout=True)
+        return cfy_version_res.stdout
+
 
 def _exception_handler(type_, value, traceback):
     error = type_.__name__
@@ -814,11 +821,7 @@ def _remove_cloudify_installation(instance, verbose):
     instance.run_command(
         'rm -f {0}'.format(instance.config_path), use_sudo=True)
 
-    if not _are_any_services_installed(instance):
-        instance.run_command(
-            'yum remove -y cloudify-manager-install', use_sudo=True)
-
-    if instance.type == 'manager':
+    if '5.1.0' in instance.get_version() and instance.type == 'manager':
         certs_paths_list = [
             'cloudify_external_cert.pem', 'cloudify_external_key.pem',
             'cloudify_internal_ca_cert.pem', 'cloudify_external_ca_cert.pem',
@@ -832,6 +835,10 @@ def _remove_cloudify_installation(instance, verbose):
                 new_path = join(certs_dir_path, timestamp + cert_path)
                 instance.run_command(
                     'mv {0} {1}'.format(full_path, new_path), use_sudo=True)
+
+    if not _are_any_services_installed(instance):
+        instance.run_command(
+            'yum remove -y cloudify-manager-install', use_sudo=True)
 
     instance.run_command('rm -rf {}'.format(CLUSTER_INSTALL_DIR))
 
@@ -885,7 +892,9 @@ def _handle_installed_instances(instances_dict, override, verbose):
                 else:
                     logger.info('Previous Cloudify installation of %s failed',
                                 instance.name)
-                    _create_installation_files(instance, verbose)
+                    if '5.1.0' in instance.get_version():
+                        _create_installation_files(instance, verbose)
+
                     logger.info('Removing failed Cloudify installation '
                                 'from %s', instance.name)
                     _remove_cloudify_installation(instance, verbose)
