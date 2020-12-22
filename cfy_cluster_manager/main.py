@@ -342,7 +342,7 @@ def _verify_cloudify_installed_successfully(instance):
             'Service {} status is unknown'.format(instance.unit_name))
 
 
-def _install_instances(instances_dict, verbose, override):
+def _install_instances(instances_dict, verbose):
     for i, instance_type in enumerate(instances_dict):
         logger.info('installing %s instances', instance_type)
         for instance in instances_dict[instance_type]:
@@ -838,6 +838,15 @@ def _remove_cloudify_installation(instance, verbose):
     instance.installed = False
 
 
+def _get_reversed_instances_dict(instances_dict):
+    reversed_instances_dict = OrderedDict(reversed(
+        list(instances_dict.items())))
+    for instance_type, instances in reversed_instances_dict.items():
+        reversed_instances_dict[instance_type] = list(reversed(instances))
+
+    return reversed_instances_dict
+
+
 def _handle_installed_instances(instances_dict, override, verbose):
     """Checking which instances were installed in the previous installation.
 
@@ -860,7 +869,8 @@ def _handle_installed_instances(instances_dict, override, verbose):
     removed its installation. This is the useful if the user wants to continue
     the installation from where it previously stopped.
     """
-    for instance_type, instances_list in instances_dict.items():
+    reversed_instances_dict = _get_reversed_instances_dict(instances_dict)
+    for instance_type, instances_list in reversed_instances_dict.items():
         for instance in instances_list:
             logger.info('Checking if %s was installed', instance.name)
             if instance.file_exists(instance.config_path):
@@ -883,10 +893,6 @@ def _handle_installed_instances(instances_dict, override, verbose):
                         continue
 
                     return
-            else:
-                if override:
-                    continue
-                return
 
 
 def install(config_path, override, only_validate, verbose):
@@ -924,7 +930,7 @@ def install(config_path, override, only_validate, verbose):
             credentials = _handle_credentials(config.get('credentials'))
         _prepare_config_files(instances_dict, credentials, config)
 
-    _install_instances(instances_dict, verbose, override)
+    _install_instances(instances_dict, verbose)
     _log_managers_connection_strings(instances_dict['manager'])
     if credentials:
         logger.warning('The credentials file was saved to %s. '
