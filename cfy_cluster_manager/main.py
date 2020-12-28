@@ -509,6 +509,8 @@ def _print_success_message(start_time, msg='installed'):
     m, s = divmod(running_time, 60)
     logger.info('Cloudify cluster was successfully {0} in '
                 '{1} minutes and {2} seconds'.format(msg, int(m), int(s)))
+    logger.info('Please run `cfy cluster status` to verify the cluster status '
+                'is healthy. It might take up to a minute for it to stabilize')
 
 
 def _install_cloudify_locally(rpm_path):
