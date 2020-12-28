@@ -48,6 +48,10 @@ SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
 BASE_CFY_DIR = '/etc/cloudify/'
 INITIAL_INSTALL_DIR = join(BASE_CFY_DIR, '.installed')
 
+UPGRADE_RPM_PATH = 'http://repository.cloudifysource.org/cloudify/5.1.1/' \
+                   '.dev1-release/cloudify-manager-install-5.1.1-' \
+                   '.dev1.el7.x86_64.rpm'
+
 
 class CfyNode(VM):
     def __init__(self,
@@ -500,7 +504,7 @@ def _log_managers_connection_strings(manager_nodes):
                 'following connection strings:\n%s', managers_str)
 
 
-def _print_successful_installation_message(start_time, msg='installed'):
+def _print_success_message(start_time, msg='installed'):
     running_time = time.time() - start_time
     m, s = divmod(running_time, 60)
     logger.info('Cloudify cluster was successfully {0} in '
@@ -946,7 +950,7 @@ def install(config_path, override, only_validate, verbose):
                        'The credentials are written there in plain text. '
                        'Please remove it after reviewing it.',
                        CREDENTIALS_FILE_PATH)
-    _print_successful_installation_message(start_time)
+    _print_success_message(start_time)
 
 
 def remove(config_path, verbose):
@@ -962,13 +966,72 @@ def remove(config_path, verbose):
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
 
-    previous_installation = _previous_installation(instances_dict)
-    if previous_installation:
+    if _previous_installation(instances_dict):
         _handle_installed_instances(instances_dict, True, verbose)
-        _print_successful_installation_message(start_time, 'removed')
+        _print_success_message(start_time, 'removed')
     else:
         logger.info('No previous installation of a Cloudify cluster was '
                     'detected. Nothing to remove.')
+
+
+def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path):
+    for instance_type, instances_list in instances_dict.items():
+        for instance in instances_list:
+            logger.info('Upgrading %s', instance.name)
+            if '5.1.0' in instance.get_version():
+                logger.info('Installing new RPM on %s', instance.name)
+                instance.run_command(
+                    'yum install -y {rpm}'.format(rpm=upgrade_rpm_path),
+                    use_sudo=True, hide_stdout=True)
+            logger.info('Running upgrade command on %s', instance.name)
+            instance.run_command(
+                'cfy_manager upgrade -c {config} {verbose}'.format(
+                    config=instance.config_path,
+                    verbose='-v' if verbose else '')
+            )
+
+
+def _should_upgrade(instances_dict, using_three_nodes_cluster):
+    logger.info('Verifying v5.1.0 is installed on all instances')
+    for instance_type, instances_list in instances_dict.items():
+        for instance in instances_list:
+            logger.debug('Verifying instance %s', instance.private_ip)
+            if not _rpm_was_installed(instance):
+                logger.debug('cloudify-manager-install is not installed on %s',
+                             instance.private_ip)
+                return False
+            instance_version = instance.get_version()
+            if '5.1.0' not in instance_version:
+                logger.debug(
+                    'cloudify-manager-install version on instance %s is not '
+                    '5.1.0. It is %s', instance.private_ip, instance_version)
+                return False
+        if using_three_nodes_cluster:  # One iteration goes through all nodes
+            return True
+
+    return True
+
+
+def upgrade(config_path, verbose, upgrade_rpm_path):
+    if not yum_is_present():
+        raise ClusterInstallError('Yum is not present.')
+
+    start_time = time.time()
+    logger.info('Upgrading Cloudify cluster')
+    config_path = config_path or CLUSTER_INSTALL_CONFIG_PATH
+    config = get_dict_from_yaml(config_path)
+    using_three_nodes_cluster = (len(config.get('existing_vms')) == 3)
+    instances_dict = (_generate_three_nodes_cluster_dict(config)
+                      if using_three_nodes_cluster else
+                      _generate_general_cluster_dict(config))
+
+    if _should_upgrade(instances_dict, using_three_nodes_cluster):
+        _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path)
+        _print_success_message(start_time, 'upgraded')
+    else:
+        logger.info("Couldn't upgrade cluster. Please verify "
+                    "cloudify-manager-install v5.1.0 is installed on all "
+                    "cluster nodes")
 
 
 def add_verbose_arg(parser):
@@ -1061,6 +1124,22 @@ def main():
     add_config_arg(remove_args)
     add_verbose_arg(remove_args)
 
+    upgrade_args = subparsers.add_parser(
+        'upgrade',
+        help='Upgrade a v5.1.0 Cloudify cluster to v5.1.1')
+
+    add_config_arg(upgrade_args)
+    upgrade_args.add_argument(
+        '--upgrade-rpm',
+        action='store',
+        default=UPGRADE_RPM_PATH,
+        help='Path to a v5.1.1 cloudify-manager-install RPM. '
+             'This can be either a local or remote path. '
+             'Default: {0}'.format(UPGRADE_RPM_PATH)
+    )
+
+    add_verbose_arg(upgrade_args)
+
     args = parser.parse_args()
 
     if hasattr(args, 'verbose'):
@@ -1075,6 +1154,9 @@ def main():
 
     elif args.action == 'remove':
         remove(args.config_path, args.verbose)
+
+    elif args.action == 'upgrade':
+        upgrade(args.config_path, args.verbose, args.upgrade_rpm)
 
     else:
         raise RuntimeError('Invalid action specified in parser.')
