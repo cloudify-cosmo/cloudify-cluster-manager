@@ -49,9 +49,8 @@ SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
 BASE_CFY_DIR = '/etc/cloudify/'
 INITIAL_INSTALL_DIR = join(BASE_CFY_DIR, '.installed')
 
-UPGRADE_RPM_PATH = 'http://repository.cloudifysource.org/cloudify/5.1.1/' \
-                   '.dev1-release/cloudify-manager-install-5.1.1-' \
-                   '.dev1.el7.x86_64.rpm'
+UPGRADE_RPM_PATH = 'http://repository.cloudifysource.org/cloudify/5.1.1/ga-' \
+                   'release/cloudify-manager-install-5.1.1-ga.el7.x86_64.rpm'
 
 
 class CfyNode(VM):

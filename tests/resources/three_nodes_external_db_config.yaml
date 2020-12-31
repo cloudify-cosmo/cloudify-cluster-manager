@@ -1,7 +1,7 @@
 ssh_key_path: '' # Filled by the test
 ssh_user: 'centos'
 cloudify_license_path: '' # Filled by the test
-manager_rpm_path: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
+manager_rpm_path: 'http://repository.cloudifysource.org/cloudify/5.1.1/ga-release/cloudify-manager-install-5.1.1-ga.el7.x86_64.rpm'
 
 ldap:
   server: ''
