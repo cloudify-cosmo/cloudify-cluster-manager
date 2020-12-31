@@ -5,6 +5,7 @@ import shutil
 import string
 import random
 import argparse
+import threading
 from getpass import getuser
 from traceback import format_exception
 from collections import OrderedDict
@@ -976,21 +977,44 @@ def remove(config_path, verbose):
                     'detected. Nothing to remove.')
 
 
-def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path):
+def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
+                     using_three_nodes_cluster):
+    instances_list = instances_dict['manager']
+    if not using_three_nodes_cluster:
+        instances_list += (instances_dict['rabbitmq'] +
+                           instances_dict['postgresql'])
+
+    _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path)
+
     for instance_type, instances_list in instances_dict.items():
         for instance in instances_list:
             logger.info('Upgrading %s', instance.name)
-            if '5.1.0' in instance.get_version():
-                logger.info('Installing new RPM on %s', instance.name)
-                instance.run_command(
-                    'yum install -y {rpm}'.format(rpm=upgrade_rpm_path),
-                    use_sudo=True, hide_stdout=True)
             logger.info('Running upgrade command on %s', instance.name)
             instance.run_command(
                 'cfy_manager upgrade -c {config} {verbose}'.format(
                     config=instance.config_path,
                     verbose='-v' if verbose else '')
             )
+
+
+def _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path):
+    threads = []
+    for i, instance in enumerate(instances_list, start=1):
+        new_thread = threading.Thread(target=_thread_rpm_upgrade,
+                                      args=(instance, upgrade_rpm_path,))
+        threads.append(new_thread)
+        new_thread.start()
+
+    for i, thread in enumerate(threads):
+        thread.join()
+        logger.info('Finished installing upgrade RPM on %s',
+                    instances_list[i].name)
+
+
+def _thread_rpm_upgrade(instance, rpm_path):
+    logger.info('Installing upgrade RPM on %s', instance.name)
+    instance.run_command('yum install -y {} --disablerepo=*'.format(rpm_path),
+                         use_sudo=True, hide_stdout=True)
 
 
 def _should_upgrade(instances_dict, using_three_nodes_cluster):
@@ -1028,7 +1052,8 @@ def upgrade(config_path, verbose, upgrade_rpm_path):
                       _generate_general_cluster_dict(config))
 
     if _should_upgrade(instances_dict, using_three_nodes_cluster):
-        _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path)
+        _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
+                         using_three_nodes_cluster)
         _print_success_message(start_time, 'upgraded')
     else:
         logger.info("Couldn't upgrade cluster. Please verify "
