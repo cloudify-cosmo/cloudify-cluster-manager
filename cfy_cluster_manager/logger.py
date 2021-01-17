@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 
-FORMAT_MSG = '%(name)s - %(levelname)s - %(message)s'
+FORMAT_MSG = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 
 def setup_logger(verbose):
