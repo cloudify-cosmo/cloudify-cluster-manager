@@ -28,7 +28,7 @@ CFY_CERTS_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
 CONFIG_FILES = 'config_files'
 DIR_NAME = 'cloudify_cluster_manager'
 RPM_NAME = 'cloudify-manager-install.rpm'
-TOP_DIR = '/tmp'
+TOP_DIR = '/etc'
 
 CLUSTER_INSTALL_DIR = join(TOP_DIR, DIR_NAME)
 RPM_PATH = join(CLUSTER_INSTALL_DIR, RPM_NAME)
@@ -380,6 +380,9 @@ def _install_instances(instances_dict, verbose):
 
             instance.run_command(install_cmd, use_sudo=True)
             _verify_cloudify_installed_successfully(instance)
+            instance.run_command('cp {0} {1}'.format(
+                '/etc/cloudify/config.yaml', instance.config_path),
+                use_sudo=True)
 
 
 def _sort_instances_dict(instances_dict):
@@ -509,8 +512,10 @@ def _print_success_message(start_time, msg='installed'):
     m, s = divmod(running_time, 60)
     logger.info('Cloudify cluster was successfully {0} in '
                 '{1} minutes and {2} seconds'.format(msg, int(m), int(s)))
-    logger.info('Please run `cfy cluster status` to verify the cluster status '
-                'is healthy. It might take up to a minute for it to stabilize')
+    if msg != 'removed':
+        logger.info(
+            'Please run `cfy cluster status` to verify the cluster status '
+            'is healthy. It might take up to a minute for it to stabilize')
 
 
 def _install_cloudify_locally(rpm_path):
@@ -882,6 +887,8 @@ def _handle_installed_instances(instances_dict, override, verbose):
     removed its installation. This is the useful if the user wants to continue
     the installation from where it previously stopped.
     """
+    logger.info('{0} previously installed instances'.format(
+        'Overriding' if override else 'Handling'))
     reversed_instances_dict = _get_reversed_instances_dict(instances_dict)
     for instance_type, instances_list in reversed_instances_dict.items():
         for instance in instances_list:
