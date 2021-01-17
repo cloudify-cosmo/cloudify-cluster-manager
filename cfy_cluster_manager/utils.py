@@ -79,6 +79,13 @@ def move(source, destination):
     sudo(['mv', source, destination])
 
 
+def mkdir(folder):
+    if os.path.isdir(folder):
+        return
+    logger.debug('Creating Directory: {0}'.format(folder))
+    sudo(['mkdir', '-p', folder])
+
+
 class VM(object):
     def __init__(self,
                  private_ip,

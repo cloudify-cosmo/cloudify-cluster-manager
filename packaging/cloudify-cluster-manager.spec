@@ -26,13 +26,18 @@ python3 -m venv %_venv
 %_venv/bin/pip install -r "${RPM_SOURCE_DIR}/dev-requirements.txt"
 %_venv/bin/pip install "${RPM_SOURCE_DIR}"
 
+%pre
+groupadd -fr cfycluster
+getent passwd cfycluster >/dev/null || useradd -r -g cfycluster -d /etc/cloudify_cluster_manager -s /sbin/nologin cfycluster
 
 %install
 mkdir -p %{buildroot}/opt
 mkdir -p %{buildroot}/usr/bin
+mkdir -p %{buildroot}/etc/cloudify_cluster_manager
 mv %_venv %{buildroot}%_venv
 ln -s %_venv/bin/cfy_cluster_manager %{buildroot}/usr/bin/cfy_cluster_manager
 
 %files
 /opt/cfy_cluster_manager
 /usr/bin/cfy_cluster_manager
+%attr(755,cfycluster,cfycluster) /etc/cloudify_cluster_manager

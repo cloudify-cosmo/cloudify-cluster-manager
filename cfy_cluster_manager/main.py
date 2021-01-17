@@ -17,7 +17,7 @@ from jinja2 import Environment, FileSystemLoader
 from .logger import get_cfy_cluster_manager_logger, setup_logger
 from .utils import (check_cert_key_match, check_cert_path, check_san,
                     check_signed_by, cloudify_rpm_is_installed,
-                    ClusterInstallError, copy, get_dict_from_yaml, move,
+                    ClusterInstallError, copy, get_dict_from_yaml, mkdir, move,
                     raise_errors_list, run, sudo, VM,
                     write_dict_to_yaml_file, yum_is_present)
 
@@ -118,7 +118,7 @@ def _generate_certs(instances_dict):
             _generate_instance_certificate(instance)
     copy(join(CFY_CERTS_PATH, 'ca.crt'), join(CFY_CERTS_PATH, 'ca.pem'))
     if not exists(CERTS_DIR):
-        os.mkdir(CERTS_DIR)
+        mkdir(CERTS_DIR)
     copy(join(CFY_CERTS_PATH, '.'), CERTS_DIR)
     shutil.rmtree(CFY_CERTS_PATH)
 
@@ -223,7 +223,7 @@ def _create_config_file(node, rendered_data=None):
 
 
 def _prepare_config_files(instances_dict, credentials, config):
-    os.mkdir(CONFIG_FILES_DIR)
+    mkdir(CONFIG_FILES_DIR)
     templates_env = Environment(
         loader=FileSystemLoader(pkg_resources.resource_filename(
             'cfy_cluster_manager', 'config_files_templates')))
@@ -473,7 +473,7 @@ def _create_cluster_install_directory():
         new_dirname = (time.strftime('%Y%m%d-%H%M%S_') + DIR_NAME)
         move(CLUSTER_INSTALL_DIR, join(TOP_DIR, new_dirname))
 
-    os.mkdir(CLUSTER_INSTALL_DIR)
+    mkdir(CLUSTER_INSTALL_DIR)
 
 
 def _random_credential_generator():
@@ -526,7 +526,7 @@ def _install_cloudify_locally(rpm_path):
         copy(expanded_rpm_path, RPM_PATH)
     else:
         logger.info('Downloading Cloudify RPM from %s', rpm_path)
-        run(['curl', '-o', RPM_PATH, rpm_path])
+        sudo(['curl', '-o', RPM_PATH, rpm_path])
         logger.info('Installing Cloudify RPM')
 
     sudo(['yum', 'install', '-y', RPM_PATH])
