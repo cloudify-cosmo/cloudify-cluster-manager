@@ -49,8 +49,8 @@ SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
 BASE_CFY_DIR = '/etc/cloudify/'
 INITIAL_INSTALL_DIR = join(BASE_CFY_DIR, '.installed')
 
-UPGRADE_RPM_PATH = 'http://repository.cloudifysource.org/cloudify/5.1.1/ga-' \
-                   'release/cloudify-manager-install-5.1.1-ga.el7.x86_64.rpm'
+UPGRADE_RPM_PATH = 'http://repository.cloudifysource.org/cloudify/5.1.2/ga-' \
+                   'release/cloudify-manager-install-5.1.2-ga.el7.x86_64.rpm'
 
 
 class CfyNode(VM):
@@ -527,8 +527,8 @@ def _install_cloudify_locally(rpm_path):
     else:
         logger.info('Downloading Cloudify RPM from %s', rpm_path)
         run(['curl', '-o', RPM_PATH, rpm_path])
-        logger.info('Installing Cloudify RPM')
 
+    logger.info('Installing Cloudify RPM')
     sudo(['yum', 'install', '-y', RPM_PATH])
 
 
@@ -1004,44 +1004,55 @@ def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
 
 
 def _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path):
+    results = [None] * len(instances_list)
     threads = []
     for i, instance in enumerate(instances_list, start=1):
         new_thread = threading.Thread(target=_thread_rpm_upgrade,
-                                      args=(instance, upgrade_rpm_path,))
+                                      args=(instance, upgrade_rpm_path,
+                                            results, i-1))
         threads.append(new_thread)
         new_thread.start()
 
     for i, thread in enumerate(threads):
         thread.join()
+
+    for i, res in enumerate(results):
+        instance_name = instances_list[i].name
+        if res.failed:
+            stderr = res.stderr
+            err_prefix = 'Failed installing upgrade RPM on ' \
+                         '{0}. {1}'.format(instance_name, stderr)
+            if 'Nothing to do' in stderr:
+                raise ClusterInstallError(
+                    err_prefix + 'Make sure it has a lower version of '
+                                 'cloudify-manager-install installed')
+
+            raise ClusterInstallError(err_prefix)
+
         logger.info('Finished installing upgrade RPM on %s',
                     instances_list[i].name)
 
 
-def _thread_rpm_upgrade(instance, rpm_path):
+def _thread_rpm_upgrade(instance, rpm_path, results, index):
     logger.info('Installing upgrade RPM on %s', instance.name)
-    instance.run_command('yum install -y {} --disablerepo=*'.format(rpm_path),
-                         use_sudo=True, hide_stdout=True)
+    res = instance.run_command('yum install -y {} --disablerepo=*'.format(
+        rpm_path), use_sudo=True, hide_stdout=True, ignore_failure=True)
+
+    results[index] = res
 
 
-def _should_upgrade(instances_dict, using_three_nodes_cluster):
-    logger.info('Verifying v5.1.0 is installed on all instances')
+def _verify_cloudify_installed(instances_dict, using_three_nodes_cluster):
+    logger.info(
+        'Verifying cloudify-manager-install is installed on all instances')
     for instance_type, instances_list in instances_dict.items():
         for instance in instances_list:
             logger.debug('Verifying instance %s', instance.private_ip)
             if not _rpm_was_installed(instance):
-                logger.debug('cloudify-manager-install is not installed on %s',
-                             instance.private_ip)
-                return False
-            instance_version = instance.get_version()
-            if '5.1.0' not in instance_version:
-                logger.debug(
-                    'cloudify-manager-install version on instance %s is not '
-                    '5.1.0. It is %s', instance.private_ip, instance_version)
-                return False
+                raise ClusterInstallError(
+                    'cloudify-manager-install is not installed on '
+                    '{0}'.format(instance.private_ip))
         if using_three_nodes_cluster:  # One iteration goes through all nodes
-            return True
-
-    return True
+            return
 
 
 def upgrade(config_path, verbose, upgrade_rpm_path):
@@ -1057,14 +1068,10 @@ def upgrade(config_path, verbose, upgrade_rpm_path):
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
 
-    if _should_upgrade(instances_dict, using_three_nodes_cluster):
-        _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
-                         using_three_nodes_cluster)
-        _print_success_message(start_time, 'upgraded')
-    else:
-        logger.info("Couldn't upgrade cluster. Please verify "
-                    "cloudify-manager-install v5.1.0 is installed on all "
-                    "cluster nodes")
+    _verify_cloudify_installed(instances_dict, using_three_nodes_cluster)
+    _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
+                     using_three_nodes_cluster)
+    _print_success_message(start_time, 'upgraded')
 
 
 def add_verbose_arg(parser):
