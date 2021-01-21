@@ -5,7 +5,6 @@ import shutil
 import string
 import random
 import argparse
-import threading
 from getpass import getuser
 from traceback import format_exception
 from collections import OrderedDict
@@ -1014,42 +1013,12 @@ def _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path):
         logger.info('Downloading Cloudify RPM from %s', expanded_rpm_path)
         run(['curl', '-o', tmp_upgrade_rpm_path, expanded_rpm_path])
 
-    results = [None] * len(instances_list)
-    threads = []
-    for i, instance in enumerate(instances_list, start=1):
-        new_thread = threading.Thread(target=_thread_rpm_upgrade,
-                                      args=(instance, tmp_upgrade_rpm_path,
-                                            results, i-1))
-        threads.append(new_thread)
-        new_thread.start()
-
-    for i, thread in enumerate(threads):
-        thread.join()
-
-    for i, res in enumerate(results):
-        instance_name = instances_list[i].name
-        if res.failed:
-            stderr = res.stderr
-            err_prefix = 'Failed installing upgrade RPM on ' \
-                         '{0}. {1}'.format(instance_name, stderr)
-            if 'Nothing to do' in stderr:
-                err_suffix = 'Make sure it has a lower version of ' \
-                             'cloudify-manager-install installed'
-                raise ClusterInstallError(err_prefix + err_suffix)
-
-            raise ClusterInstallError(err_prefix)
-
-        logger.info('Finished installing upgrade RPM on %s', instance_name)
-
-
-def _thread_rpm_upgrade(instance, tmp_upgrade_rpm_path, results, index):
-    logger.info('Installing upgrade RPM on %s', instance.name)
-    instance.put_file(tmp_upgrade_rpm_path, tmp_upgrade_rpm_path)
-    res = instance.run_command(
-        'yum install -y {} --disablerepo=*'.format(tmp_upgrade_rpm_path),
-        use_sudo=True, hide_stdout=True, ignore_failure=True)
-
-    results[index] = res
+    for instance in instances_list:
+        logger.info('Installing upgrade RPM on %s', instance.private_ip)
+        instance.put_file(tmp_upgrade_rpm_path, tmp_upgrade_rpm_path)
+        instance.run_command(
+            'yum install -y {} --disablerepo=*'.format(tmp_upgrade_rpm_path),
+            use_sudo=True, hide_stdout=True)
 
 
 def _verify_cloudify_installed(instances_dict, using_three_nodes_cluster):
