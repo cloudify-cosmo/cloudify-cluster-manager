@@ -143,10 +143,15 @@ class VM(object):
         if not isfile(local_path):
             raise ClusterInstallError('{} is not a file'.format(local_path))
 
-        with self._get_connection() as connection:
-            logger.debug('Copying %s to %s on host %s',
-                         local_path, remote_path, self.private_ip)
-            connection.put(expanduser(local_path), remote_path)
+        if self.file_exists(remote_path):
+            logger.debug('The files already exist on instance %s',
+                         self.private_ip)
+
+        else:
+            with self._get_connection() as connection:
+                logger.debug('Copying %s to %s on host %s',
+                             local_path, remote_path, self.private_ip)
+                connection.put(expanduser(local_path), remote_path)
 
     def put_dir(self, local_dir_path, remote_dir_path):
         """Copy a local directory to a remote host.
