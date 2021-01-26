@@ -163,7 +163,7 @@ pipeline {
           string(name: 'BRANCH', value: "${env.BRANCH}"),
           string(name: 'GITHUB_PROJECT_URL', value: "https://github.com/cloudify-cosmo/cloudify-cluster-manager.git"),
           string(name: 'BUILD_BRANCH', value: "master"),
-          booleanParam(name: 'VALIDATE_PACKAGE', value: true)
+          booleanParam(name: 'VALIDATE_PACKAGE', value: false)
         ]
       }
     }
