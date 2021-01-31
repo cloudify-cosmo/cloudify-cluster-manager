@@ -28,7 +28,7 @@ setup(
     name='cloudify-cluster-manager',
     long_description=get_readme_contents(),
     long_description_content_type='text/markdown',
-    version='1.0.7',
+    version='1.0.8',
     author='Cloudify',
     author_email='cosmo-admin@cloudify.co',
     packages=['cfy_cluster_manager'],
