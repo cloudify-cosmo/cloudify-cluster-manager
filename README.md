@@ -177,7 +177,7 @@ cfy_cluster_manager remove [OPTIONS]
 
 &nbsp;
 ### Upgrading a Cloudify cluster
-The Cloudify cluster can be upgraded from v5.1.0 to v5.1.1 using the following command:
+The Cloudify cluster can be upgraded from v5.1.0 to any minor version (5.1.x) using the following command:
 
 ```bash
 cfy_cluster_manager upgrade [OPTIONS]
@@ -187,8 +187,8 @@ cfy_cluster_manager upgrade [OPTIONS]
 * `--config-path` - The completed cluster configuration file path. 
                      Default: ./cfy_cluster_config.yaml
   
-* `--upgrade-rpm` - Path to a v5.1.1 cloudify-manager-install RPM. This can be either a local or remote path.  
-                    Default: http://repository.cloudifysource.org/cloudify/5.1.1/ga-release/cloudify-manager-install-5.1.1-ga.el7.x86_64.rpm
+* `--upgrade-rpm` - Path to a cloudify-manager-install RPM. This can be either a local or remote path.  
+                    Default: http://repository.cloudifysource.org/cloudify/5.1.3/ga-release/cloudify-manager-install-5.1.3-ga.el7.x86_64.rpm
 
 * `-v, --verbose` - Show verbose output.
 

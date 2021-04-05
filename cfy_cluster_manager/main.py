@@ -49,8 +49,8 @@ SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
 BASE_CFY_DIR = '/etc/cloudify/'
 INITIAL_INSTALL_DIR = join(BASE_CFY_DIR, '.installed')
 
-DEFAULT_RPM = 'http://repository.cloudifysource.org/cloudify/5.1.2/ga-' \
-              'release/cloudify-manager-install-5.1.2-ga.el7.x86_64.rpm'
+DEFAULT_RPM = 'http://repository.cloudifysource.org/cloudify/5.1.3/ga-' \
+              'release/cloudify-manager-install-5.1.3-ga.el7.x86_64.rpm'
 
 
 class CfyNode(VM):
@@ -1153,7 +1153,7 @@ def main():
         '--upgrade-rpm',
         action='store',
         default=DEFAULT_RPM,
-        help='Path to a v5.1.1 cloudify-manager-install RPM. '
+        help='Path to an upgrade cloudify-manager-install RPM. '
              'This can be either a local or remote path. '
              'Default: {0}'.format(DEFAULT_RPM)
     )
