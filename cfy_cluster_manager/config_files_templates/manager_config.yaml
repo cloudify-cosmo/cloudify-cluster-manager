@@ -47,6 +47,7 @@ restservice:
 
 validations:
   minimum_required_total_physical_memory_in_mb: 1024
+  minimum_required_available_disk_space_in_gb: 1
 
 {% if load_balancer_ip-%}
 networks:
