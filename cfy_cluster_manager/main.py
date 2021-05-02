@@ -49,8 +49,7 @@ SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
 BASE_CFY_DIR = '/etc/cloudify/'
 INITIAL_INSTALL_DIR = join(BASE_CFY_DIR, '.installed')
 
-DEFAULT_RPM = 'https://repository.cloudifysource.org/cloudify/5.2.1/' \
-              'ga-release/cloudify-manager-install-5.2.1-ga.el7.x86_64.rpm'
+DEFAULT_RPM = 'https://repository.cloudifysource.org/cloudify/5.2.1/ga-release/cloudify-manager-install-5.2.1-ga.el7.x86_64.rpm'  # NOQA
 
 
 class CfyNode(VM):
