@@ -246,6 +246,7 @@ def test_ssl_enabled_false(three_nodes_config_dict,
     manager_config = _get_instance_config('manager', config_files_dir)
 
     assert manager_config['manager']['security']['ssl_enabled'] is False
+    assert 'external_cert_path' not in manager_config['ssl_inputs']
 
 
 def _assert_manager_config_credentials(config_files_dir, credentials):
