@@ -195,3 +195,15 @@ def test_ssh_password_key_path_mutually_exc(three_nodes_config_dict):
         validate_config(config=three_nodes_config_dict,
                         using_three_nodes_cluster=True,
                         override=False)
+
+
+def test_ssl_enabled_is_boolean(three_nodes_config_dict):
+    validate_config(config=three_nodes_config_dict,
+                    using_three_nodes_cluster=True,
+                    override=False)
+
+    three_nodes_config_dict['ssl_enabled'] = 'test'
+    with pytest.raises(ClusterInstallError, match='true or false'):
+        validate_config(config=three_nodes_config_dict,
+                        using_three_nodes_cluster=True,
+                        override=False)

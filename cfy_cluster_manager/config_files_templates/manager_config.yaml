@@ -6,7 +6,7 @@ manager:
   {%-endif %}
 
   security:
-    ssl_enabled: true
+    ssl_enabled: {{ ssl_enabled }}
     admin_username: {{ creds.manager.admin_username }}
     admin_password: {{ creds.manager.admin_password }}
 
