@@ -184,7 +184,8 @@ def _prepare_manager_config_files(template,
                                   credentials,
                                   load_balancer_ip,
                                   external_db_config,
-                                  ldap_configuration):
+                                  ldap_configuration,
+                                  ssl_enabled):
     logger.info('Preparing Manager config files')
     if external_db_config:
         external_db_config.update({'ssl_client_verification': False,
@@ -207,7 +208,8 @@ def _prepare_manager_config_files(template,
             postgresql_cluster={} if external_db_config else
             _get_postgresql_cluster_members(instances_dict['postgresql']),
             external_db_configuration=external_db_config,
-            ldap_configuration=ldap_configuration
+            ldap_configuration=ldap_configuration,
+            ssl_enabled=ssl_enabled
         )
 
         _create_config_file(node, rendered_data)
@@ -250,7 +252,8 @@ def _prepare_config_files(instances_dict, credentials, config):
         credentials,
         config.get('load_balancer_ip'),
         external_db_config,
-        ldap_configuration
+        ldap_configuration,
+        config.get('ssl_enabled', True)
     )
 
 
@@ -681,6 +684,12 @@ def _validate_ssh_config(config, errors_list):
     _check_value_provided(config, 'ssh_user', errors_list)
 
 
+def _validate_ssl_enabled_boolean_value(config, errors_list):
+    ssl_enabled = config.get('ssl_enabled')
+    if (ssl_enabled is not None) and (not isinstance(ssl_enabled, bool)):
+        errors_list.append('`ssl_enabled` must be true or false')
+
+
 def validate_config(config, using_three_nodes_cluster, override):
     errors_list = []
     _validate_ssh_config(config, errors_list)
@@ -689,6 +698,7 @@ def validate_config(config, using_three_nodes_cluster, override):
     _validate_existing_vms(config, using_three_nodes_cluster, errors_list)
     _validate_external_db_config(config, override, errors_list)
     _validate_ldap_certificate_setting(config, errors_list)
+    _validate_ssl_enabled_boolean_value(config, errors_list)
 
     if errors_list:
         raise_errors_list(errors_list)

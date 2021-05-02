@@ -164,11 +164,11 @@ def test_ldap_in_config_file(three_nodes_config_dict,
     _assert_created_certs(tmp_certs_dir, certs_dir)
 
 
-def test_extrnal_db_in_config_file(three_nodes_external_db_config_dict,
-                                   config_files_dir,
-                                   external_db_ca_path,
-                                   tmp_certs_dir,
-                                   certs_dir):
+def test_external_db_in_config_file(three_nodes_external_db_config_dict,
+                                    config_files_dir,
+                                    external_db_ca_path,
+                                    tmp_certs_dir,
+                                    certs_dir):
     """
     Test if the external_db is configured properly in the manager
     config.yaml file.
@@ -232,6 +232,21 @@ def test_nine_nodes_using_provided_config_paths(nine_nodes_config_dict,
     _create_config_files(nine_nodes_config_dict, config_files_dir,
                          three_nodes=False)
     _assert_created_config_files(tmp_config_files_dir, config_files_dir)
+
+
+def test_ssl_enabled_false(three_nodes_config_dict,
+                           config_files_dir):
+    """
+    Test if ssl_enabled is configured properly in the manager
+    config.yaml file.
+    """
+    # In this case, The three nodes and nine nodes logic is the same
+    three_nodes_config_dict.update({'ssl_enabled': False})
+    _create_config_files(three_nodes_config_dict, config_files_dir)
+    manager_config = _get_instance_config('manager', config_files_dir)
+
+    assert manager_config['manager']['security']['ssl_enabled'] is False
+    assert 'external_cert_path' not in manager_config['ssl_inputs']
 
 
 def _assert_manager_config_credentials(config_files_dir, credentials):
