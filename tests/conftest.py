@@ -63,6 +63,13 @@ def ca_path(tmp_certs_dir):
 
 
 @pytest.fixture()
+def ca_key_path(tmp_certs_dir):
+    ca_key_path = tmp_certs_dir / 'ca.key'
+    ca_key_path.write_text(u'test_ca_key_path')
+    return str(ca_key_path)
+
+
+@pytest.fixture()
 def ldap_ca_path(tmp_certs_dir):
     ldap_ca_path = tmp_certs_dir / 'ldap_ca.pem'
     ldap_ca_path.write_text(u'test_ldap_ca_path')

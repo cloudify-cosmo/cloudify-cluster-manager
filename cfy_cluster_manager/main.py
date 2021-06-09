@@ -36,6 +36,7 @@ CERTS_DIR = join(CLUSTER_INSTALL_DIR, CERTS_DIR_NAME)
 CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 CA_PATH = join(CERTS_DIR, 'ca.pem')
+CA_KEY_PATH = join(CERTS_DIR, 'ca.key')
 EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
 LDAP_CA_PATH = join(CERTS_DIR, 'ldap_ca.pem')
 
@@ -200,6 +201,7 @@ def _prepare_manager_config_files(template,
             node=node,
             creds=credentials,
             ca_path=CA_PATH,
+            ca_key_path=CA_KEY_PATH,
             license_path=join(CLUSTER_INSTALL_DIR, 'license.yaml'),
             load_balancer_ip=load_balancer_ip,
             rabbitmq_cluster=_get_rabbitmq_cluster_members(
@@ -622,8 +624,13 @@ def _validate_existing_vms(config, using_three_nodes, errors_list):
     existing_vms_dict = config.get('existing_vms')
     _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list)
     _validate_vms_not_duplicated(existing_vms_dict, errors_list)
-    ca_path_exists = (_using_provided_certificates(config) and
+    ca_path_exists = (bool(_using_provided_certificates(config)) and
                       _check_path(config, 'ca_cert_path', errors_list))
+    ca_key_path_exists = (bool(config.get('ca_key_path')) and
+                          _check_path(config, 'ca_key_path', errors_list))
+    if ca_path_exists != ca_key_path_exists:
+        errors_list.append('Either both ca_cert_path and ca_key_path must '
+                           'be provided, or neither.')
     for vm_name, vm_dict in existing_vms_dict.items():
         logger.info('Validating %s', vm_name)
         if ca_path_exists:
@@ -770,6 +777,7 @@ def _using_provided_config_files(instances_dict):
 def _handle_certificates(config, instances_dict):
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
+        copy(expanduser(config.get('ca_key_path')), CA_KEY_PATH)
         for instances_list in instances_dict.values():
             for instance in instances_list:
                 copy(instance.provided_cert_path, instance.cert_path)
