@@ -66,7 +66,7 @@ def sudo(command, *args, **kwargs):
 def ensure_destination_dir_exists(destination):
     destination_dir = dirname(destination)
     if not exists(destination_dir):
-        sudo(['mkdir', '-p', destination_dir])
+        run(['mkdir', '-p', destination_dir])
 
 
 def copy(source, destination):
