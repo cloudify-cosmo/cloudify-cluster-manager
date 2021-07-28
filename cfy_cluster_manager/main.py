@@ -262,6 +262,7 @@ def _install_cloudify_remotely(instance):
     logger.info('Installing Cloudify RPM on %s', instance.name)
     instance.run_command(
         'yum install -y {}'.format(RPM_PATH), use_sudo=True, hide_stdout=True)
+    instance.run_command('yum clean all', use_sudo=True, hide_stdout=True)
 
 
 def _get_service_status_code(instance):
