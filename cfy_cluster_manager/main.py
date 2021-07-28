@@ -1007,6 +1007,10 @@ def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
         instances_list += (instances_dict['rabbitmq'] +
                            instances_dict['postgresql'])
 
+    for instance in instances_list:
+        instance.run_command(
+            'if rpm -qi cloudify-manager-install; then sudo yum clean all; fi')
+
     _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path)
 
     for instance_type, instances_list in instances_dict.items():
