@@ -273,6 +273,14 @@ def _get_service_status_code(instance):
     return result.return_code
 
 
+def _get_service_logs(instance):
+    """Get logs for the cfy_manager_install_<type> service."""
+    result = instance.run_command(
+        'journalctl status {} 2>&1'.format(instance.unit_name),
+        use_sudo=True, hide_stdout=True, ignore_failure=True)
+    return result.stdout
+
+
 def _wait_for_cloudify_current_installation(instance):
     logger.info(
         'Waiting for current installation of %s to finish', instance.name)
@@ -348,12 +356,16 @@ def _cloudify_was_previously_installed_successfully(instance):
 def _verify_cloudify_installed_successfully(instance):
     status_code = _get_service_status_code(instance)
     if status_code == 3:
+        logger.error('Cluster install failure. Logs:')
+        logger.error(_get_service_logs(instance))
         raise ClusterInstallError(
             'Failed installing Cloudify on instance {}.'.format(
                 instance.private_ip))
     elif status_code == 4:
         return _verify_service_installed(instance)
     else:
+        logger.error('Cluster install failure. Logs:')
+        logger.error(_get_service_logs(instance))
         raise ClusterInstallError(
             'Service {} status is unknown'.format(instance.unit_name))
 
