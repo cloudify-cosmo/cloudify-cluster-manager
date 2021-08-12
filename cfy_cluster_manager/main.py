@@ -390,6 +390,8 @@ def _install_instances(instances_dict, verbose):
                 instance.config_path), use_sudo=True)
 
             install_cmd = (
+                # This runs with -t so that it blocks AND we see the logs as
+                # the command runs.
                 'systemd-run -t --unit {unit_name} --uid {user_name} '
                 'cfy_manager install -c {config} {verbose}'.format(
                     config=instance.config_path, unit_name=instance.unit_name,

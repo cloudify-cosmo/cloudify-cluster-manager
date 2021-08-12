@@ -129,9 +129,10 @@ class VM(object):
         hide = True if hide_stdout else 'stderr'
         with self._get_connection() as connection:
             logger.debug('Running `%s` on %s', command, self.private_ip)
-            result = (connection.sudo(command, warn=True, hide=hide)
-                      if use_sudo else
-                      connection.run(command, warn=True, hide=hide))
+            run = connection.sudo if use_sudo else connection.run
+            # We need to assign a pty or the systemd-run command will fail if
+            # this is run via something which doesn't have a tty.
+            result = run(command, warn=True, hide=hide, pty=True)
             if result.failed and not ignore_failure:
                 raise ClusterInstallError(
                     'The command `{0}` on host {1} failed with the error '
