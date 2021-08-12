@@ -390,7 +390,7 @@ def _install_instances(instances_dict, verbose):
                 instance.config_path), use_sudo=True)
 
             install_cmd = (
-                'systemd-run -t --unit {unit_name} --uid {user_name} '
+                'systemd-run --unit {unit_name} --uid {user_name} '
                 'cfy_manager install -c {config} {verbose}'.format(
                     config=instance.config_path, unit_name=instance.unit_name,
                     user_name=getuser(), verbose='-v' if verbose else ''))
