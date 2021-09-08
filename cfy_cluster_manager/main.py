@@ -276,7 +276,7 @@ def _get_service_status_code(instance):
 def _get_service_logs(instance):
     """Get logs for the cfy_manager_install_<type> service."""
     result = instance.run_command(
-        'journalctl -u {} 2>&1'.format(instance.unit_name),
+        'journalctl --no-pager -u {} 2>&1'.format(instance.unit_name),
         use_sudo=True, hide_stdout=True, ignore_failure=True)
     return result.stdout
 
