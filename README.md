@@ -15,6 +15,7 @@ easily installing a Cloudify cluster on either three or nine VMs.
     * [Filling in the configuration file](#filling-in-the-configuration-file)
     * [Installing a Cloudify cluster](#installing-a-cloudify-cluster)
     * [Removing a Cloudify cluster](#removing-a-cloudify-cluster)
+    * [Upgrading a Cloudify cluster](#upgrading-a-cloudify-cluster)
 * [Fault tolerance mechanisms](#fault-tolerance-mechanisms)
 
 &nbsp;
@@ -47,7 +48,7 @@ cluster network. You can install the package either by using an RPM or by using 
 #### Installing using an RPM
 Run the following command:
 ```bash 
-sudo yum install -y http://repository.cloudifysource.org/cloudify/cloudify-cluster-manager/1.0.4/ga-release/cloudify-cluster-manager-1.0.4-ga.el7.x86_64.rpm
+sudo yum install -y http://repository.cloudifysource.org/cloudify/cloudify-cluster-manager/1.0.14/ga-release/cloudify-cluster-manager-1.0.14-ga.el7.x86_64.rpm
 
 # Installing haveged to avoid hanging executions
 sudo yum install -y epel-release
@@ -174,6 +175,24 @@ cfy_cluster_manager remove [OPTIONS]
 
 * `-h, --help` - Show this help message and exit.
 
+&nbsp;
+### Upgrading a Cloudify cluster
+The Cloudify cluster can be upgraded from v5.1.0 to any minor version (5.1.x) using the following command:
+
+```bash
+cfy_cluster_manager upgrade [OPTIONS]
+```
+
+#### Options
+* `--config-path` - The completed cluster configuration file path. 
+                     Default: ./cfy_cluster_config.yaml
+  
+* `--upgrade-rpm` - Path to a cloudify-manager-install RPM. This can be either a local or remote path.  
+                    Default: http://repository.cloudifysource.org/cloudify/5.1.3/ga-release/cloudify-manager-install-5.1.3-ga.el7.x86_64.rpm
+
+* `-v, --verbose` - Show verbose output.
+
+* `-h, --help` - Show this help message and exit.
 
 &nbsp;
 ## Fault tolerance mechanisms

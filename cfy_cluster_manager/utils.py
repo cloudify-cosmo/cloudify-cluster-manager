@@ -66,7 +66,7 @@ def sudo(command, *args, **kwargs):
 def ensure_destination_dir_exists(destination):
     destination_dir = dirname(destination)
     if not exists(destination_dir):
-        sudo(['mkdir', '-p', destination_dir])
+        run(['mkdir', '-p', destination_dir])
 
 
 def copy(source, destination):
@@ -129,9 +129,10 @@ class VM(object):
         hide = True if hide_stdout else 'stderr'
         with self._get_connection() as connection:
             logger.debug('Running `%s` on %s', command, self.private_ip)
-            result = (connection.sudo(command, warn=True, hide=hide)
-                      if use_sudo else
-                      connection.run(command, warn=True, hide=hide))
+            run = connection.sudo if use_sudo else connection.run
+            # We need to assign a pty or the systemd-run command will fail if
+            # this is run via something which doesn't have a tty.
+            result = run(command, warn=True, hide=hide, pty=True)
             if result.failed and not ignore_failure:
                 raise ClusterInstallError(
                     'The command `{0}` on host {1} failed with the error '
@@ -143,10 +144,15 @@ class VM(object):
         if not isfile(local_path):
             raise ClusterInstallError('{} is not a file'.format(local_path))
 
-        with self._get_connection() as connection:
-            logger.debug('Copying %s to %s on host %s',
-                         local_path, remote_path, self.private_ip)
-            connection.put(expanduser(local_path), remote_path)
+        if self.file_exists(remote_path):
+            logger.debug('The files already exist on instance %s',
+                         self.private_ip)
+
+        else:
+            with self._get_connection() as connection:
+                logger.debug('Copying %s to %s on host %s',
+                             local_path, remote_path, self.private_ip)
+                connection.put(expanduser(local_path), remote_path)
 
     def put_dir(self, local_dir_path, remote_dir_path):
         """Copy a local directory to a remote host.

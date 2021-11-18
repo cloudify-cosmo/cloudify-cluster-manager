@@ -28,7 +28,7 @@ setup(
     name='cloudify-cluster-manager',
     long_description=get_readme_contents(),
     long_description_content_type='text/markdown',
-    version='1.0.5',
+    version='1.0.15',
     author='Cloudify',
     author_email='cosmo-admin@cloudify.co',
     packages=['cfy_cluster_manager'],
@@ -43,6 +43,7 @@ setup(
     install_requires=[
         'pyyaml>=5.3.0,<5.4.0',
         'jinja2>=2.11.0,<2.12.0',
-        'fabric>=2.5.0,<2.6.0'
+        'fabric>=2.5.0,<2.6.0',
+        'cryptography==3.3.2'
     ]
 )

@@ -42,7 +42,8 @@ def config_files_dir(cluster_manager_dir):
 def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
                                                  certs_dir,
                                                  tmp_certs_dir,
-                                                 ca_path):
+                                                 ca_path,
+                                                 ca_key_path):
     """Testing if the install code uses the provided certificates.
 
     In case certificates were provided for all existing_vms, the install code
@@ -50,6 +51,7 @@ def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
     This test verifies this behavior for the three nodes cluster use case.
     """
     three_nodes_config_dict['ca_cert_path'] = ca_path
+    three_nodes_config_dict['ca_key_path'] = ca_key_path
     for node_name, node_dict in three_nodes_config_dict[
             'existing_vms'].items():
         node_num = node_name.split('-')[1]
@@ -66,7 +68,9 @@ def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
 
     with mock.patch('cfy_cluster_manager.main.CA_PATH',
                     str(certs_dir / 'ca.pem')), \
-            mock.patch('cfy_cluster_manager.main.CERTS_DIR', str(certs_dir)):
+            mock.patch('cfy_cluster_manager.main.CERTS_DIR', str(certs_dir)), \
+            mock.patch('cfy_cluster_manager.main.CA_KEY_PATH',
+                       str(certs_dir / 'ca.key')):
         cluster_dict = _generate_three_nodes_cluster_dict(
             three_nodes_config_dict)
         _handle_certificates(three_nodes_config_dict, cluster_dict)
@@ -77,7 +81,8 @@ def test_three_nodes_using_provided_certificates(three_nodes_config_dict,
 def test_nine_nodes_using_provided_certificates(nine_nodes_config_dict,
                                                 certs_dir,
                                                 tmp_certs_dir,
-                                                ca_path):
+                                                ca_path,
+                                                ca_key_path):
     """Testing if the install code uses the provided certificates.
 
     In case certificates were provided for all existing_vms, the install code
@@ -85,6 +90,7 @@ def test_nine_nodes_using_provided_certificates(nine_nodes_config_dict,
     This test verifies this behavior for the nine nodes cluster use case.
     """
     nine_nodes_config_dict['ca_cert_path'] = ca_path
+    nine_nodes_config_dict['ca_key_path'] = ca_key_path
     for node_name, node_dict in nine_nodes_config_dict['existing_vms'].items():
         for val in 'key', 'cert':
             val_path = tmp_certs_dir / '{0}_{1}.pem'.format(node_name, val)
@@ -93,7 +99,9 @@ def test_nine_nodes_using_provided_certificates(nine_nodes_config_dict,
 
     with mock.patch('cfy_cluster_manager.main.CA_PATH',
                     str(certs_dir / 'ca.pem')), \
-            mock.patch('cfy_cluster_manager.main.CERTS_DIR', str(certs_dir)):
+            mock.patch('cfy_cluster_manager.main.CERTS_DIR', str(certs_dir)), \
+            mock.patch('cfy_cluster_manager.main.CA_KEY_PATH',
+                       str(certs_dir / 'ca.key')):
         cluster_dict = _generate_general_cluster_dict(nine_nodes_config_dict)
         _handle_certificates(nine_nodes_config_dict, cluster_dict)
 
@@ -164,11 +172,11 @@ def test_ldap_in_config_file(three_nodes_config_dict,
     _assert_created_certs(tmp_certs_dir, certs_dir)
 
 
-def test_extrnal_db_in_config_file(three_nodes_external_db_config_dict,
-                                   config_files_dir,
-                                   external_db_ca_path,
-                                   tmp_certs_dir,
-                                   certs_dir):
+def test_external_db_in_config_file(three_nodes_external_db_config_dict,
+                                    config_files_dir,
+                                    external_db_ca_path,
+                                    tmp_certs_dir,
+                                    certs_dir):
     """
     Test if the external_db is configured properly in the manager
     config.yaml file.
@@ -232,6 +240,21 @@ def test_nine_nodes_using_provided_config_paths(nine_nodes_config_dict,
     _create_config_files(nine_nodes_config_dict, config_files_dir,
                          three_nodes=False)
     _assert_created_config_files(tmp_config_files_dir, config_files_dir)
+
+
+def test_ssl_enabled_false(three_nodes_config_dict,
+                           config_files_dir):
+    """
+    Test if ssl_enabled is configured properly in the manager
+    config.yaml file.
+    """
+    # In this case, The three nodes and nine nodes logic is the same
+    three_nodes_config_dict.update({'ssl_enabled': False})
+    _create_config_files(three_nodes_config_dict, config_files_dir)
+    manager_config = _get_instance_config('manager', config_files_dir)
+
+    assert manager_config['manager']['security']['ssl_enabled'] is False
+    assert 'external_cert_path' not in manager_config['ssl_inputs']
 
 
 def _assert_manager_config_credentials(config_files_dir, credentials):

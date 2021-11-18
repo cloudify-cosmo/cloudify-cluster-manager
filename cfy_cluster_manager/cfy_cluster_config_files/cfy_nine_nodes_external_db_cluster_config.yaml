@@ -10,8 +10,11 @@ ssh_key_path: ''
 # Local path to a valid Cloudify license
 cloudify_license_path: ''
 
+# When enabled, the external REST communication will be performed over HTTPS
+ssl_enabled: true
+
 # Manager RPM to install on the cluster instances. This can be a download link or a local path.
-manager_rpm_path: 'http://repository.cloudifysource.org/cloudify/5.1.0/ga-release/cloudify-manager-install-5.1.0ga.rpm'
+manager_rpm_path: 'https://repository.cloudifysource.org/cloudify/5.2.1/ga-release/cloudify-manager-install-5.2.1-ga.el7.x86_64.rpm'
 
 # This section is only relevant if using LDAP
 ldap:
@@ -39,6 +42,7 @@ ldap:
 
 # If specified, all the VMs certificates will need to be specified as well
 ca_cert_path: ''
+ca_key_path: ''
 
 # If using a load-balancer, please provide its IP.
 # This IP will be written to the manager config.yaml files under
@@ -104,7 +108,7 @@ external_db_configuration:
   # If your database is an Azure DBaaS instance, you must set 'server_username'
   # so it includes the database name as a suffix. For example, if your database
   # name is "mycfydb" and your username is "test", then "server_username"
-  # should be "mycfydb@test".
+  # should be "test@mycfydb".
   server_db_name: ''  # master db name
   server_username: ''  # master username to login external database
   server_password: ''  # password of master username to login external database

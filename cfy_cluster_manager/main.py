@@ -27,6 +27,7 @@ CFY_CERTS_PATH = '{0}/.cloudify-test-ca'.format(expanduser('~'))
 CONFIG_FILES = 'config_files'
 DIR_NAME = 'cloudify_cluster_manager'
 RPM_NAME = 'cloudify-manager-install.rpm'
+UPGRADE_RPM_NAME = 'upgrade-cloudify-manager-install'
 TOP_DIR = '/tmp'
 
 CLUSTER_INSTALL_DIR = join(TOP_DIR, DIR_NAME)
@@ -35,6 +36,7 @@ CERTS_DIR = join(CLUSTER_INSTALL_DIR, CERTS_DIR_NAME)
 CONFIG_FILES_DIR = join(CLUSTER_INSTALL_DIR, CONFIG_FILES)
 
 CA_PATH = join(CERTS_DIR, 'ca.pem')
+CA_KEY_PATH = join(CERTS_DIR, 'ca.key')
 EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
 LDAP_CA_PATH = join(CERTS_DIR, 'ldap_ca.pem')
 
@@ -48,9 +50,7 @@ SYSTEMD_RUN_UNIT_NAME = 'cfy_cluster_manager_{}'
 BASE_CFY_DIR = '/etc/cloudify/'
 INITIAL_INSTALL_DIR = join(BASE_CFY_DIR, '.installed')
 
-UPGRADE_RPM_PATH = 'http://repository.cloudifysource.org/cloudify/5.1.1/' \
-                   '.dev1-release/cloudify-manager-install-5.1.1-' \
-                   '.dev1.el7.x86_64.rpm'
+DEFAULT_RPM = 'https://repository.cloudifysource.org/cloudify/5.2.1/ga-release/cloudify-manager-install-5.2.1-ga.el7.x86_64.rpm'  # NOQA
 
 
 class CfyNode(VM):
@@ -184,7 +184,8 @@ def _prepare_manager_config_files(template,
                                   credentials,
                                   load_balancer_ip,
                                   external_db_config,
-                                  ldap_configuration):
+                                  ldap_configuration,
+                                  ssl_enabled):
     logger.info('Preparing Manager config files')
     if external_db_config:
         external_db_config.update({'ssl_client_verification': False,
@@ -200,6 +201,7 @@ def _prepare_manager_config_files(template,
             node=node,
             creds=credentials,
             ca_path=CA_PATH,
+            ca_key_path=CA_KEY_PATH,
             license_path=join(CLUSTER_INSTALL_DIR, 'license.yaml'),
             load_balancer_ip=load_balancer_ip,
             rabbitmq_cluster=_get_rabbitmq_cluster_members(
@@ -207,7 +209,8 @@ def _prepare_manager_config_files(template,
             postgresql_cluster={} if external_db_config else
             _get_postgresql_cluster_members(instances_dict['postgresql']),
             external_db_configuration=external_db_config,
-            ldap_configuration=ldap_configuration
+            ldap_configuration=ldap_configuration,
+            ssl_enabled=ssl_enabled
         )
 
         _create_config_file(node, rendered_data)
@@ -250,7 +253,8 @@ def _prepare_config_files(instances_dict, credentials, config):
         credentials,
         config.get('load_balancer_ip'),
         external_db_config,
-        ldap_configuration
+        ldap_configuration,
+        config.get('ssl_enabled', True)
     )
 
 
@@ -258,6 +262,7 @@ def _install_cloudify_remotely(instance):
     logger.info('Installing Cloudify RPM on %s', instance.name)
     instance.run_command(
         'yum install -y {}'.format(RPM_PATH), use_sudo=True, hide_stdout=True)
+    instance.run_command('yum clean all', use_sudo=True, hide_stdout=True)
 
 
 def _get_service_status_code(instance):
@@ -266,6 +271,14 @@ def _get_service_status_code(instance):
         'systemctl status {}'.format(instance.unit_name),
         use_sudo=True, hide_stdout=True, ignore_failure=True)
     return result.return_code
+
+
+def _get_service_logs(instance):
+    """Get logs for the cfy_manager_install_<type> service."""
+    result = instance.run_command(
+        'journalctl --no-pager -u {} 2>&1'.format(instance.unit_name),
+        use_sudo=True, hide_stdout=True, ignore_failure=True)
+    return result.stdout
 
 
 def _wait_for_cloudify_current_installation(instance):
@@ -343,12 +356,16 @@ def _cloudify_was_previously_installed_successfully(instance):
 def _verify_cloudify_installed_successfully(instance):
     status_code = _get_service_status_code(instance)
     if status_code == 3:
+        logger.error('Cluster install failure. Logs:')
+        logger.error(_get_service_logs(instance))
         raise ClusterInstallError(
             'Failed installing Cloudify on instance {}.'.format(
                 instance.private_ip))
     elif status_code == 4:
         return _verify_service_installed(instance)
     else:
+        logger.error('Cluster install failure. Logs:')
+        logger.error(_get_service_logs(instance))
         raise ClusterInstallError(
             'Service {} status is unknown'.format(instance.unit_name))
 
@@ -373,6 +390,8 @@ def _install_instances(instances_dict, verbose):
                 instance.config_path), use_sudo=True)
 
             install_cmd = (
+                # This runs with -t so that it blocks AND we see the logs as
+                # the command runs.
                 'systemd-run -t --unit {unit_name} --uid {user_name} '
                 'cfy_manager install -c {config} {verbose}'.format(
                     config=instance.config_path, unit_name=instance.unit_name,
@@ -380,6 +399,9 @@ def _install_instances(instances_dict, verbose):
 
             instance.run_command(install_cmd, use_sudo=True)
             _verify_cloudify_installed_successfully(instance)
+            instance.run_command('cp {0} {1}'.format(
+                '/etc/cloudify/config.yaml', instance.config_path),
+                use_sudo=True)
 
 
 def _sort_instances_dict(instances_dict):
@@ -509,8 +531,10 @@ def _print_success_message(start_time, msg='installed'):
     m, s = divmod(running_time, 60)
     logger.info('Cloudify cluster was successfully {0} in '
                 '{1} minutes and {2} seconds'.format(msg, int(m), int(s)))
-    logger.info('Please run `cfy cluster status` to verify the cluster status '
-                'is healthy. It might take up to a minute for it to stabilize')
+    if msg != 'removed':
+        logger.info(
+            'Please run `cfy cluster status` to verify the cluster status '
+            'is healthy. It might take up to a minute for it to stabilize')
 
 
 def _install_cloudify_locally(rpm_path):
@@ -522,8 +546,8 @@ def _install_cloudify_locally(rpm_path):
     else:
         logger.info('Downloading Cloudify RPM from %s', rpm_path)
         run(['curl', '-o', RPM_PATH, rpm_path])
-        logger.info('Installing Cloudify RPM')
 
+    logger.info('Installing Cloudify RPM')
     sudo(['yum', 'install', '-y', RPM_PATH])
 
 
@@ -615,8 +639,13 @@ def _validate_existing_vms(config, using_three_nodes, errors_list):
     existing_vms_dict = config.get('existing_vms')
     _validate_config_paths(existing_vms_dict, using_three_nodes, errors_list)
     _validate_vms_not_duplicated(existing_vms_dict, errors_list)
-    ca_path_exists = (_using_provided_certificates(config) and
+    ca_path_exists = (bool(_using_provided_certificates(config)) and
                       _check_path(config, 'ca_cert_path', errors_list))
+    ca_key_path_exists = (bool(config.get('ca_key_path')) and
+                          _check_path(config, 'ca_key_path', errors_list))
+    if ca_path_exists != ca_key_path_exists:
+        errors_list.append('Either both ca_cert_path and ca_key_path must '
+                           'be provided, or neither.')
     for vm_name, vm_dict in existing_vms_dict.items():
         logger.info('Validating %s', vm_name)
         if ca_path_exists:
@@ -676,6 +705,12 @@ def _validate_ssh_config(config, errors_list):
     _check_value_provided(config, 'ssh_user', errors_list)
 
 
+def _validate_ssl_enabled_boolean_value(config, errors_list):
+    ssl_enabled = config.get('ssl_enabled')
+    if (ssl_enabled is not None) and (not isinstance(ssl_enabled, bool)):
+        errors_list.append('`ssl_enabled` must be true or false')
+
+
 def validate_config(config, using_three_nodes_cluster, override):
     errors_list = []
     _validate_ssh_config(config, errors_list)
@@ -684,6 +719,7 @@ def validate_config(config, using_three_nodes_cluster, override):
     _validate_existing_vms(config, using_three_nodes_cluster, errors_list)
     _validate_external_db_config(config, override, errors_list)
     _validate_ldap_certificate_setting(config, errors_list)
+    _validate_ssl_enabled_boolean_value(config, errors_list)
 
     if errors_list:
         raise_errors_list(errors_list)
@@ -756,6 +792,7 @@ def _using_provided_config_files(instances_dict):
 def _handle_certificates(config, instances_dict):
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
+        copy(expanduser(config.get('ca_key_path')), CA_KEY_PATH)
         for instances_list in instances_dict.values():
             for instance in instances_list:
                 copy(instance.provided_cert_path, instance.cert_path)
@@ -882,6 +919,8 @@ def _handle_installed_instances(instances_dict, override, verbose):
     removed its installation. This is the useful if the user wants to continue
     the installation from where it previously stopped.
     """
+    logger.info('{0} previously installed instances'.format(
+        'Overriding' if override else 'Handling'))
     reversed_instances_dict = _get_reversed_instances_dict(instances_dict)
     for instance_type, instances_list in reversed_instances_dict.items():
         for instance in instances_list:
@@ -976,15 +1015,18 @@ def remove(config_path, verbose):
                     'detected. Nothing to remove.')
 
 
-def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path):
+def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
+                     using_three_nodes_cluster):
+    instances_list = instances_dict['manager']
+    if not using_three_nodes_cluster:
+        instances_list += (instances_dict['rabbitmq'] +
+                           instances_dict['postgresql'])
+
+    _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path)
+
     for instance_type, instances_list in instances_dict.items():
         for instance in instances_list:
             logger.info('Upgrading %s', instance.name)
-            if '5.1.0' in instance.get_version():
-                logger.info('Installing new RPM on %s', instance.name)
-                instance.run_command(
-                    'yum install -y {rpm}'.format(rpm=upgrade_rpm_path),
-                    use_sudo=True, hide_stdout=True)
             logger.info('Running upgrade command on %s', instance.name)
             instance.run_command(
                 'cfy_manager upgrade -c {config} {verbose}'.format(
@@ -993,25 +1035,36 @@ def _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path):
             )
 
 
-def _should_upgrade(instances_dict, using_three_nodes_cluster):
-    logger.info('Verifying v5.1.0 is installed on all instances')
+def _install_upgrade_rpm_on_nodes(instances_list, upgrade_rpm_path):
+    rpm_file_name = time.strftime('%Y%m%d-%H%M%S_') + UPGRADE_RPM_NAME + '.rpm'
+    tmp_upgrade_rpm_path = join('/tmp', rpm_file_name)
+    expanded_rpm_path = expanduser(upgrade_rpm_path)
+    if exists(expanded_rpm_path):
+        copy(expanded_rpm_path, tmp_upgrade_rpm_path)
+    else:
+        logger.info('Downloading Cloudify RPM from %s', expanded_rpm_path)
+        run(['curl', '-o', tmp_upgrade_rpm_path, expanded_rpm_path])
+
+    for instance in instances_list:
+        logger.info('Installing upgrade RPM on %s', instance.private_ip)
+        instance.put_file(tmp_upgrade_rpm_path, tmp_upgrade_rpm_path)
+        instance.run_command(
+            'yum install -y {} --disablerepo=*'.format(tmp_upgrade_rpm_path),
+            use_sudo=True, hide_stdout=True)
+
+
+def _verify_cloudify_installed(instances_dict, using_three_nodes_cluster):
+    logger.info(
+        'Verifying cloudify-manager-install is installed on all instances')
     for instance_type, instances_list in instances_dict.items():
         for instance in instances_list:
             logger.debug('Verifying instance %s', instance.private_ip)
             if not _rpm_was_installed(instance):
-                logger.debug('cloudify-manager-install is not installed on %s',
-                             instance.private_ip)
-                return False
-            instance_version = instance.get_version()
-            if '5.1.0' not in instance_version:
-                logger.debug(
-                    'cloudify-manager-install version on instance %s is not '
-                    '5.1.0. It is %s', instance.private_ip, instance_version)
-                return False
+                raise ClusterInstallError(
+                    'cloudify-manager-install is not installed on '
+                    '{0}'.format(instance.private_ip))
         if using_three_nodes_cluster:  # One iteration goes through all nodes
-            return True
-
-    return True
+            return
 
 
 def upgrade(config_path, verbose, upgrade_rpm_path):
@@ -1027,13 +1080,10 @@ def upgrade(config_path, verbose, upgrade_rpm_path):
                       if using_three_nodes_cluster else
                       _generate_general_cluster_dict(config))
 
-    if _should_upgrade(instances_dict, using_three_nodes_cluster):
-        _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path)
-        _print_success_message(start_time, 'upgraded')
-    else:
-        logger.info("Couldn't upgrade cluster. Please verify "
-                    "cloudify-manager-install v5.1.0 is installed on all "
-                    "cluster nodes")
+    _verify_cloudify_installed(instances_dict, using_three_nodes_cluster)
+    _upgrade_cluster(instances_dict, verbose, upgrade_rpm_path,
+                     using_three_nodes_cluster)
+    _print_success_message(start_time, 'upgraded')
 
 
 def add_verbose_arg(parser):
@@ -1134,10 +1184,10 @@ def main():
     upgrade_args.add_argument(
         '--upgrade-rpm',
         action='store',
-        default=UPGRADE_RPM_PATH,
-        help='Path to a v5.1.1 cloudify-manager-install RPM. '
+        default=DEFAULT_RPM,
+        help='Path to an upgrade cloudify-manager-install RPM. '
              'This can be either a local or remote path. '
-             'Default: {0}'.format(UPGRADE_RPM_PATH)
+             'Default: {0}'.format(DEFAULT_RPM)
     )
 
     add_verbose_arg(upgrade_args)
