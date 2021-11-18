@@ -16,13 +16,10 @@ def getUploadPath(){
 def buildClusterManagerRPM(String version, String prerelease, String branchName='master'){
   container('rpmbuild'){
     sh """
-      cd && mkdir rpmbuild && cd rpmbuild
+      cd ~/rpmbuild
       mkdir -p SOURCES && cp -rf ${env.WORKSPACE}/cloudify-cluster-manager/* SOURCES && cd SOURCES
     """
-
-    echo 'Download sources for RPM spec file & Build RPM'
-    sh "yum install rpmdevtools -y"
-
+    
     echo 'Build Cloudify Cluster Manager RPM'
     buildRpm('~/rpmbuild/SOURCES', 'cloudify-cluster-manager.spec', "${version}", "${prerelease}")
 
