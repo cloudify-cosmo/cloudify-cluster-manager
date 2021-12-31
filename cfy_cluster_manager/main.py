@@ -399,9 +399,6 @@ def _install_instances(instances_dict, verbose):
 
             instance.run_command(install_cmd, use_sudo=True)
             _verify_cloudify_installed_successfully(instance)
-            instance.run_command('cp {0} {1}'.format(
-                '/etc/cloudify/config.yaml', instance.config_path),
-                use_sudo=True)
 
 
 def _sort_instances_dict(instances_dict):
