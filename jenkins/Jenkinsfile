@@ -1,8 +1,5 @@
 def getClusterManagerVersion(String branchName='master'){
-  sh returnStdout:true, script: """
-    eval "\$(curl 'https://raw.githubusercontent.com/cloudify-cosmo/cloudify-cluster-manager/${branchName}/packaging/version_info')"
-    echo "\$CLOUDIFY_CLUSTER_MANAGER_VERSION"
-  """
+  sh returnStdout:true, script: """echo 1.0.16"""
 }
 
 def getUploadPath(){
@@ -129,7 +126,6 @@ pipeline {
       }
     }
     stage('Build RPM'){
-      when { not { branch pattern: ".+-build", comparator: "REGEXP" } }
       steps{
         buildClusterManagerRPM("${env.VERSION}", "${env.PRERELEASE}", "${env.BRANCH}")
       }
