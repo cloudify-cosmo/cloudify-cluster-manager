@@ -1,4 +1,4 @@
 pytest
 pytest-cov
-pyyaml>=5.4,<5.5
+pyyaml>=6.0,<6.1
 mock>=4.0.0,<4.1.0
