@@ -41,9 +41,10 @@ setup(
         ]
     },
     install_requires=[
-        'pyyaml>=5.3.0,<5.4.0',
+        'pyyaml>=5.4,<5.5',
         'jinja2>=2.11.0,<2.12.0',
         'fabric>=2.5.0,<2.6.0',
-        'cryptography==3.3.2'
+        'cryptography==3.3.2',
+        'cffi>=1.12,<1.15',
     ]
 )
