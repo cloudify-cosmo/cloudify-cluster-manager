@@ -1,0 +1,2 @@
+1.0.17:
+  - small fixes to handle wild-card certificates [ we won't pass the ca_key ] and handle ldap certificate passing in case of non-secure ldap
