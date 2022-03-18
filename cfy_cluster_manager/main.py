@@ -190,18 +190,22 @@ def _prepare_manager_config_files(template,
     if external_db_config:
         external_db_config.update({'ssl_client_verification': False,
                                    'ca_path': EXTERNAL_DB_CA_PATH})
-    if ldap_configuration:
+    if ldap_configuration and \
+            ldap_configuration.get('server').startswith('ldaps'):
         ldap_configuration.update({'ca_cert': LDAP_CA_PATH})
 
     for node in instances_dict['manager']:
         if node.provided_config_path:
             _create_config_file(node)
             continue
+        ca_key_path = ''
+        if exists(CA_KEY_PATH):
+            ca_key_path = CA_KEY_PATH
         rendered_data = template.render(
             node=node,
             creds=credentials,
             ca_path=CA_PATH,
-            ca_key_path=CA_KEY_PATH,
+            ca_key_path=ca_key_path,
             license_path=join(CLUSTER_INSTALL_DIR, 'license.yaml'),
             load_balancer_ip=load_balancer_ip,
             rabbitmq_cluster=_get_rabbitmq_cluster_members(
@@ -640,7 +644,7 @@ def _validate_existing_vms(config, using_three_nodes, errors_list):
                       _check_path(config, 'ca_cert_path', errors_list))
     ca_key_path_exists = (bool(config.get('ca_key_path')) and
                           _check_path(config, 'ca_key_path', errors_list))
-    if ca_path_exists != ca_key_path_exists:
+    if config.get('ca_key_path') and ca_path_exists != ca_key_path_exists:
         errors_list.append('Either both ca_cert_path and ca_key_path must '
                            'be provided, or neither.')
     for vm_name, vm_dict in existing_vms_dict.items():
@@ -789,7 +793,8 @@ def _using_provided_config_files(instances_dict):
 def _handle_certificates(config, instances_dict):
     if _using_provided_certificates(config):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
-        copy(expanduser(config.get('ca_key_path')), CA_KEY_PATH)
+        if config.get('ca_key_path'):
+            copy(expanduser(config.get('ca_key_path')), CA_KEY_PATH)
         for instances_list in instances_dict.values():
             for instance in instances_list:
                 copy(instance.provided_cert_path, instance.cert_path)

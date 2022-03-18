@@ -286,9 +286,14 @@ def check_san(vm_name, vm_dict, cert_path, errors_list):
     ip_addresses = re.findall(r'\bIP Address:(\S+)\b', cert)
     dns_addresses = re.findall(r'\bDNS:(\S+)\b', cert)
     for ip in vm_dict['private_ip'], vm_dict['public_ip']:
-        if (ip in ip_addresses) and (ip in dns_addresses):
+        # adding special handle for wildcard certificate
+        if (ip in ip_addresses) and (ip in dns_addresses or
+                                     '*.{0}'.format(ip.split('.', 1)[1])
+                                     in dns_addresses):
             return
-    if hostname and hostname in dns_addresses:
+    if hostname and (hostname in dns_addresses or
+                     '*.{0}'.format(hostname.split('.', 1)[1])
+                     in dns_addresses):
         return
 
     suffix = ' Allowed IP addresses: {0}, Allowed DNS: {1}'.format(

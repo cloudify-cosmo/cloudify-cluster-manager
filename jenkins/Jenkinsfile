@@ -19,7 +19,7 @@ def buildClusterManagerRPM(String version, String prerelease, String branchName=
       cd ~/rpmbuild
       mkdir -p SOURCES && cp -rf ${env.WORKSPACE}/cloudify-cluster-manager/* SOURCES && cd SOURCES
     """
-    
+
     echo 'Build Cloudify Cluster Manager RPM'
     buildRpm('~/rpmbuild/SOURCES', 'cloudify-cluster-manager.spec', "${version}", "${prerelease}")
 
@@ -60,8 +60,8 @@ pipeline {
       steps {
         container('python'){
           sh '''
-            apt-get update
-            apt-get install libldap-dev libsasl2-dev
+            apt-get update -y
+            apt-get install libldap-dev libsasl2-dev -y
             virtualenv ~/venv
           '''
         }
