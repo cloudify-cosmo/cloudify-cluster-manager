@@ -292,7 +292,7 @@ def check_san(vm_name, vm_dict, cert_path, errors_list):
                                      in dns_addresses):
             return
     if hostname and (hostname in dns_addresses or
-                     '*.{0}'.format(hostname.split('.', 1)[1])
+                     '*.{0}'.format(hostname.partition('.')[2])
                      in dns_addresses):
         return
 
