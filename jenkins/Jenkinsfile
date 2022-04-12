@@ -48,7 +48,7 @@ pipeline {
   environment {
     BRANCH = "${env.BRANCH_NAME}"
     PROJECT = "cloudify-cluster-manager"
-    VERSION=getClusterManagerVersion("${env.BRANCH_NAME}").trim()
+    VERSION= "1.1.0"
     PRERELEASE = ".dev1"
     S3_BUILD_PATH = "${env.PROJECT}/${env.VERSION}/${env.PRERELEASE}-build/${env.BRANCH}/${env.BUILD_NUMBER}"
     S3_RELEASE_PATH = "${env.PROJECT}/${env.VERSION}/ga-release"
