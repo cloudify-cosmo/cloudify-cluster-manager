@@ -63,6 +63,8 @@ existing_vms:
         manager_config_path: ''
         postgresql_config_path: ''
         rabbitmq_config_path: ''
+      # Extra config entries to put on this node
+      extra_config: {}
 
     node-2:
       private_ip: ''
@@ -75,6 +77,8 @@ existing_vms:
         manager_config_path: ''
         postgresql_config_path: ''
         rabbitmq_config_path: ''
+      # Extra config entries to put on this node
+      extra_config: {}
 
     node-3:
       private_ip: ''
@@ -87,6 +91,8 @@ existing_vms:
         manager_config_path: ''
         postgresql_config_path: ''
         rabbitmq_config_path: ''
+      # Extra config entries to put on this node
+      extra_config: {}
 
 
 # If the credentials are not specified, random self-generated ones will be used and written to {{ credentials_file_path }}

@@ -62,6 +62,8 @@ existing_vms:
       config_path:
         manager_config_path: ''
         rabbitmq_config_path: ''
+      # Extra config entries to put on this node
+      extra_config: {}
 
     node-2:
       private_ip: ''
@@ -73,6 +75,8 @@ existing_vms:
       config_path:
         manager_config_path: ''
         rabbitmq_config_path: ''
+      # Extra config entries to put on this node
+      extra_config: {}
 
     node-3:
       private_ip: ''
@@ -84,6 +88,8 @@ existing_vms:
       config_path:
         manager_config_path: ''
         rabbitmq_config_path: ''
+      # Extra config entries to put on this node
+      extra_config: {}
 
 
 external_db_configuration:

@@ -59,6 +59,8 @@ existing_vms:
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
       config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
+      # Extra config entries to put on this node
+      extra_config: {}
 
     manager-2:
       private_ip: ''
@@ -67,6 +69,8 @@ existing_vms:
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
       config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
+      # Extra config entries to put on this node
+      extra_config: {}
 
     manager-3:
       private_ip: ''
@@ -75,6 +79,8 @@ existing_vms:
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
       config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
+      # Extra config entries to put on this node
+      extra_config: {}
 
     rabbitmq-1:
       private_ip: ''
@@ -83,6 +89,8 @@ existing_vms:
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
       config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
+      # Extra config entries to put on this node
+      extra_config: {}
 
     rabbitmq-2:
       private_ip: ''
@@ -91,6 +99,8 @@ existing_vms:
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
       config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
+      # Extra config entries to put on this node
+      extra_config: {}
 
     rabbitmq-3:
       private_ip: ''
@@ -99,6 +109,8 @@ existing_vms:
       cert_path: ''  # Need to be supplied if ca_cert_path was supplied
       key_path: ''  # Need to be supplied if ca_cert_path was supplied
       config_path: '' # Optional. In case you wish to use your own config.yaml for this instance.
+      # Extra config entries to put on this node
+      extra_config: {}
 
 
 external_db_configuration:

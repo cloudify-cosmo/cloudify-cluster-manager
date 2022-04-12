@@ -1,10 +1,11 @@
+import argparse
 import os
-import sys
-import time
+import random
 import shutil
 import string
-import random
-import argparse
+import sys
+import time
+import yaml
 from getpass import getuser
 from traceback import format_exception
 from collections import OrderedDict
@@ -64,7 +65,8 @@ class CfyNode(VM):
                  hostname,
                  cert_path,
                  key_path,
-                 config_file_path):
+                 config_file_path,
+                 extra_config):
         super(CfyNode, self).__init__(private_ip, public_ip,
                                       key_file_path, username, password)
         self.name = node_name
@@ -80,6 +82,12 @@ class CfyNode(VM):
         self.config_path = join(
             BASE_CFY_DIR, '{}_config.yaml'.format(node_name))
         self.unit_name = SYSTEMD_RUN_UNIT_NAME.format(self.type)
+        self.extra_config = extra_config
+
+        if self.extra_config and self.provided_config_path:
+            raise RuntimeError(
+                'Cannot use extra_config override with provided config paths.'
+            )
 
     def get_version(self):
         # You need to verify cloudify-manager-install is installed
@@ -220,9 +228,22 @@ def _prepare_manager_config_files(template,
         _create_config_file(node, rendered_data)
 
 
+def _update_config(rendered_data, extra_config):
+    for key, value in extra_config.items():
+        if isinstance(value, dict) and key in rendered_data:
+            if key in rendered_data:
+                _update_config(rendered_data[key], extra_config[key])
+        else:
+            rendered_data[key] = value
+
+
 def _create_config_file(node, rendered_data=None):
     config_path = join(CONFIG_FILES_DIR, '{0}_config.yaml'.format(node.name))
     if rendered_data:
+        if node.extra_config:
+            config = yaml.load(rendered_data)
+            _update_config(config, node.extra_config)
+            rendered_data = yaml.dump(config)
         with open(config_path, 'w') as config_file:
             config_file.write(rendered_data)
     else:
@@ -430,7 +451,8 @@ def _get_cfy_node(config, node_dict, node_name, config_path,
                      node_dict.get('hostname'),
                      cert_path=node_dict.get('cert_path'),
                      key_path=node_dict.get('key_path'),
-                     config_file_path=config_path)
+                     config_file_path=config_path,
+                     extra_config=node_dict.get('extra_config', {}))
     if validate_connection:
         logger.debug('Testing connection to %s', new_vm.private_ip)
         new_vm.test_connection()
