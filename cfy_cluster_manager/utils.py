@@ -197,7 +197,7 @@ class VM(object):
 
 def get_dict_from_yaml(yaml_path):
     with open(yaml_path) as yaml_file:
-        yaml_dict = yaml.load(yaml_file, yaml.Loader)
+        yaml_dict = yaml.safe_load(yaml_file)
     return yaml_dict
 
 

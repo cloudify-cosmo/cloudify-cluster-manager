@@ -241,7 +241,7 @@ def _create_config_file(node, rendered_data=None):
     config_path = join(CONFIG_FILES_DIR, '{0}_config.yaml'.format(node.name))
     if rendered_data:
         if node.extra_config:
-            config = yaml.load(rendered_data)
+            config = yaml.safe_load(rendered_data)
             _update_config(config, node.extra_config)
             rendered_data = yaml.dump(config)
         with open(config_path, 'w') as config_file:

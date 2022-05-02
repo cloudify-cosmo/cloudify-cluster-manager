@@ -103,7 +103,7 @@ def _get_config_dict(config_file_name, basic_config_dict):
     resources_path = join(dirname(__file__), 'resources')
     completed_config_path = join(resources_path, config_file_name)
     with open(completed_config_path) as config_path:
-        config_dict = yaml.load(config_path, yaml.Loader)
+        config_dict = yaml.safe_load(config_path)
 
     config_dict.update(basic_config_dict)
     return config_dict
