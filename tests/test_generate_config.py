@@ -44,9 +44,9 @@ def test_fail_three_and_nine_nodes_not_supplied():
 def _assert_same_config_contents(output_path, config_name):
     """Assert the output file is the same as the configuration file."""
     with open(join(CONFIG_FILES_PATH, config_name)) as config_file:
-        config_dict = yaml.load(config_file, yaml.Loader)
+        config_dict = yaml.safe_load(config_file)
     with open(output_path) as output_file:
-        output_dict = yaml.load(output_file, yaml.Loader)
+        output_dict = yaml.safe_load(output_file)
     err_msg = ('The output file {0} is not the same as the config file '
                '{1}'.format(output_path, config_name))
     assert config_dict == output_dict, err_msg

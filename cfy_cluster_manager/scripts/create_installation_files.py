@@ -139,7 +139,7 @@ def read_yaml_file(yaml_path):
         try:
             file_content = sudo_read(yaml_path)
             yaml = YAML(typ='safe', pure=True)
-            return yaml.load(file_content)
+            return yaml.safe_load(file_content)
         except YAMLError as e:
             raise YAMLError('Failed to load yaml file {0}, due to {1}'
                             ''.format(yaml_path, str(e)))

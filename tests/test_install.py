@@ -318,7 +318,7 @@ def _get_instance_config(instance, config_files_dir):
     with open(
             str(config_files_dir / '{}-1_config.yaml'.format(instance)), 'r') \
             as instance_config:
-        return yaml.load(instance_config, yaml.Loader)
+        return yaml.safe_load(instance_config)
 
 
 def _create_config_files(config_dict, config_files_dir, credentials=None,
