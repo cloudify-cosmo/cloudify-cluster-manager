@@ -19,6 +19,7 @@ rabbitmq:
   cluster_members: {{ rabbitmq_cluster }}
 
   ca_path: {{ ca_path }}
+  ca_key_path: {{ ca_key_path }}
 
 postgresql_server:
   cluster:
@@ -27,6 +28,7 @@ postgresql_server:
   ca_path: {{ external_db_configuration.ca_path }}
   {%-else-%}
   ca_path: {{ ca_path }}
+  ca_key_path: {{ ca_key_path }}
   ssl_enabled: true
   postgres_password: {{ creds.postgresql.postgres_password }}
   {%-endif %}
@@ -77,6 +79,7 @@ prometheus:
   cert_path: {{ node.cert_path }}
   key_path: {{ node.key_path }}
   ca_path: {{ ca_path }}
+  ca_key_path: {{ ca_key_path }}
 
 services_to_install:
   - manager_service

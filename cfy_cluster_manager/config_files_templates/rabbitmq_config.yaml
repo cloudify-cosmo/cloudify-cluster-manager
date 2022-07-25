@@ -14,6 +14,7 @@ rabbitmq:
   cert_path: {{ node.cert_path }}
   key_path: {{ node.key_path }}
   ca_path: {{ ca_path }}
+  ca_key_path: {{ ca_key_path }}
 
   nodename: {{ node.name }}
 
@@ -37,6 +38,7 @@ prometheus:
   cert_path: {{ node.cert_path }}
   key_path: {{ node.key_path }}
   ca_path: {{ ca_path }}
+  ca_key_path: {{ ca_key_path }}
 
 validations:
   minimum_required_total_physical_memory_in_mb: 1024
