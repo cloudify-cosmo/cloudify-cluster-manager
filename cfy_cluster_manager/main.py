@@ -162,6 +162,7 @@ def _prepare_postgresql_config_files(template,
         rendered_data = template.render(node=node,
                                         creds=credentials,
                                         ca_path=CA_PATH,
+                                        ca_key_path=CA_KEY_PATH,
                                         postgresql_cluster=postgresql_cluster)
         _create_config_file(node, rendered_data)
 
@@ -181,6 +182,7 @@ def _prepare_rabbitmq_config_files(template,
         rendered_data = template.render(node=node,
                                         creds=credentials,
                                         ca_path=CA_PATH,
+                                        ca_key_path=CA_KEY_PATH,
                                         join_cluster=join_cluster,
                                         rabbitmq_cluster=rabbitmq_cluster,
                                         load_balancer_ip=load_balancer_ip)
