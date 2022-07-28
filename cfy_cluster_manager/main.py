@@ -295,7 +295,7 @@ def _install_cloudify_remotely(instance):
 def _get_service_status_code(instance):
     """Checking the status code of the cfy_manager_install_<type> service."""
     result = instance.run_command(
-        'systemctl status {}'.format(instance.unit_name),
+        'systemctl status {} --no-pager'.format(instance.unit_name),
         use_sudo=True, hide_stdout=True, ignore_failure=True)
     return result.return_code
 
