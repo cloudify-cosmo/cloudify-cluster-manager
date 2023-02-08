@@ -44,7 +44,7 @@ setup(
         'pyyaml>=6.0,<6.1',
         'jinja2>=2.11.0,<2.12.0',
         'fabric>=2.5.0,<2.6.0',
-        'cryptography==3.3.2',
+        'cryptography==39.0.1',
         'cffi>=1.12,<1.15',
     ]
 )
