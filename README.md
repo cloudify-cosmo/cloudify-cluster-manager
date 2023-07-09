@@ -56,6 +56,13 @@ sudo yum install -y haveged
 sudo systemctl start haveged
 ```
 
+**NOTE:** On RHEL 8, install haveged as follows instead:
+```bash
+curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -o epel-release-latest-8.noarch.rpm
+sudo yum install -y epel-release-latest-8.noarch.rpm
+sudo yum install -y haveged
+```
+
 #### Installing using pip install
 ```bash
 pip install cloudify-cluster-manager
@@ -158,6 +165,16 @@ cfy_cluster_manager install [OPTIONS]
 * `-v, --verbose` - Show verbose output.
 
 * `-h, --help` - Show this help message and exit.
+
+**NOTE:** On RHEL 8, *before* installing the cluster, add the following required 
+packages on each machine of the cluster, since the VMs may come without them:
+```bash
+sudo yum install -y https://repository.cloudifysource.org/cloudify/components/libnsl-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-common-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-langpack-en-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-locale-source-2.28-189.el8.x86_64.rpm --allowerasing
+```
 
 &nbsp;
 ### Removing a Cloudify cluster
