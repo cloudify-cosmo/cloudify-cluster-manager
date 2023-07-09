@@ -56,6 +56,13 @@ sudo yum install -y haveged
 sudo systemctl start haveged
 ```
 
+**NOTE:** On RHEL 8, install haveged as follows instead:
+```bash
+curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -o epel-release-latest-8.noarch.rpm
+sudo yum install -y epel-release-latest-8.noarch.rpm
+sudo yum install -y haveged
+```
+
 #### Installing using pip install
 ```bash
 pip install cloudify-cluster-manager
@@ -106,6 +113,7 @@ cfy_cluster_manager generate-config [OPTIONS]
 #### General Note
 Fill in the information according to the comments in the file itself.
 **NOTE!** Do not delete anything from the file.
+**NOTE!** On RHEL 8, make sure to use the `.el8` RPM for the `manager_rpm_path`.
 
 #### Load-balancer
 As mentioned before, a load-balancer is not installed as part of the cluster installation.
@@ -134,6 +142,8 @@ Moreover, the ldap, external_db, and credentials sections in the configuration f
 * Unfilled credentials will be generated and used by the Cloudify Cluster Manager package. The generated credentials
 are random.
 
+* The PostgreSQL password must start with a *letter* (i.e. a password `12345678` will cause an error during PostgreSQL installation).
+
 * **WARNING:** At the end of the installation, a file named `secret_credentials_file.yaml` will be created in the current directory.
 This file includes the credentials in clear text. Please, remove it after reviewing it or store it in a safe location.   
 
@@ -158,6 +168,16 @@ cfy_cluster_manager install [OPTIONS]
 * `-v, --verbose` - Show verbose output.
 
 * `-h, --help` - Show this help message and exit.
+
+**NOTE:** On RHEL 8, *before* installing the cluster, add the following required 
+packages on each machine of the cluster, since the VMs may come without them:
+```bash
+sudo yum install -y https://repository.cloudifysource.org/cloudify/components/libnsl-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-common-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-langpack-en-2.28-189.el8.x86_64.rpm \
+https://repository.cloudifysource.org/cloudify/components/glibc-locale-source-2.28-189.el8.x86_64.rpm --allowerasing
+```
 
 &nbsp;
 ### Removing a Cloudify cluster
