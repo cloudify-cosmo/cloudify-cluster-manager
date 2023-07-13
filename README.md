@@ -113,6 +113,7 @@ cfy_cluster_manager generate-config [OPTIONS]
 #### General Note
 Fill in the information according to the comments in the file itself.
 **NOTE!** Do not delete anything from the file.
+**NOTE!** On RHEL 8, make sure to use the `.el8` RPM for the `manager_rpm_path`.
 
 #### Load-balancer
 As mentioned before, a load-balancer is not installed as part of the cluster installation.
@@ -140,6 +141,8 @@ Moreover, the ldap, external_db, and credentials sections in the configuration f
 
 * Unfilled credentials will be generated and used by the Cloudify Cluster Manager package. The generated credentials
 are random.
+
+* The PostgreSQL password must start with a *letter* (i.e. a password `12345678` will cause an error during PostgreSQL installation).
 
 * **WARNING:** At the end of the installation, a file named `secret_credentials_file.yaml` will be created in the current directory.
 This file includes the credentials in clear text. Please, remove it after reviewing it or store it in a safe location.   
