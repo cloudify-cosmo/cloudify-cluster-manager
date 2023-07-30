@@ -66,10 +66,10 @@ ssl_inputs:
   {%-endif %}
   internal_cert_path: {{ node.cert_path }}
   internal_key_path: {{ node.key_path }}
-  postgresql_client_cert_path: {{ node.cert_path }}
-  postgresql_client_key_path: {{ node.key_path }}
-  postgresql_superuser_client_cert_path: {{ node.cert_path }}
-  postgresql_superuser_client_key_path: {{ node.key_path }}
+  postgresql_client_cert_path: {{ db_client_cert_path }}
+  postgresql_client_key_path: {{ db_client_key_path }}
+  postgresql_superuser_client_cert_path: {{ db_client_su_cert_path }}
+  postgresql_superuser_client_key_path: {{ db_client_su_key_path }}
   ca_cert_path: {{ ca_path }}
   ca_key_path: {{ ca_key_path }}
 
