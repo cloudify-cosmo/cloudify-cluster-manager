@@ -48,7 +48,7 @@ cluster network. You can install the package either by using an RPM or by using 
 #### Installing using an RPM
 Run the following command:
 ```bash
-sudo yum install -y http://repository.cloudifysource.org/cloudify/cloudify-cluster-manager/1.1.5/ga-release/cloudify-cluster-manager-1.1.5-ga.el7.x86_64.rpm
+sudo yum install -y http://repository.cloudifysource.org/cloudify/cloudify-cluster-manager/1.1.6/ga-release/cloudify-cluster-manager-1.1.6-ga.el7.x86_64.rpm
 
 # Installing haveged to avoid hanging executions
 curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -o epel-release-latest-7.noarch.rpm

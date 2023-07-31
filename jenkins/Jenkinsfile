@@ -1,8 +1,10 @@
 def getClusterManagerVersion(String branchName='master'){
-  sh returnStdout:true, script: """
-    eval "\$(curl 'https://raw.githubusercontent.com/cloudify-cosmo/cloudify-cluster-manager/${branchName}/packaging/version_info')"
-    echo "\$CLOUDIFY_CLUSTER_MANAGER_VERSION"
-  """
+  container('python'){
+      sh returnStdout:true, script: """
+        eval "\$(curl 'https://raw.githubusercontent.com/cloudify-cosmo/cloudify-cluster-manager/${branchName}/packaging/version_info')"
+        echo "\$CLOUDIFY_CLUSTER_MANAGER_VERSION"
+      """
+  }
 }
 
 def getUploadPath(){
