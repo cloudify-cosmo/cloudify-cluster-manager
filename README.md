@@ -51,7 +51,8 @@ Run the following command:
 sudo yum install -y http://repository.cloudifysource.org/cloudify/cloudify-cluster-manager/1.1.5/ga-release/cloudify-cluster-manager-1.1.5-ga.el7.x86_64.rpm
 
 # Installing haveged to avoid hanging executions
-sudo yum install -y epel-release
+curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -o epel-release-latest-7.noarch.rpm
+sudo yum install -y epel-release-latest-7.noarch.rpm
 sudo yum install -y haveged
 sudo systemctl start haveged
 ```
@@ -61,6 +62,7 @@ sudo systemctl start haveged
 curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -o epel-release-latest-8.noarch.rpm
 sudo yum install -y epel-release-latest-8.noarch.rpm
 sudo yum install -y haveged
+sudo systemctl start haveged
 ```
 
 #### Installing using pip install
@@ -68,7 +70,8 @@ sudo yum install -y haveged
 pip install cloudify-cluster-manager
 
 # Installing haveged to avoid hanging executions
-sudo yum install -y epel-release
+curl https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -o epel-release-latest-7.noarch.rpm
+sudo yum install -y epel-release-latest-7.noarch.rpm
 sudo yum install -y haveged
 sudo systemctl start haveged
 ```

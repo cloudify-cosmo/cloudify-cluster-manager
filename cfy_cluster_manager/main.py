@@ -40,6 +40,10 @@ CA_PATH = join(CERTS_DIR, 'ca.pem')
 CA_KEY_PATH = join(CERTS_DIR, 'ca.key')
 EXTERNAL_DB_CA_PATH = join(CERTS_DIR, 'external_db_ca.pem')
 LDAP_CA_PATH = join(CERTS_DIR, 'ldap_ca.pem')
+DB_CLIENT_CERT_PATH = join(CERTS_DIR, 'cloudify.crt')
+DB_CLIENT_KEY_PATH = join(CERTS_DIR, 'cloudify.key')
+DB_CLIENT_SU_CERT_PATH = join(CERTS_DIR, 'postgres.crt')
+DB_CLIENT_SU_KEY_PATH = join(CERTS_DIR, 'postgres.key')
 
 CREDENTIALS_FILE_PATH = join(os.getcwd(), 'secret_credentials.yaml')
 CLUSTER_CONFIG_FILES_DIR = pkg_resources.resource_filename(
@@ -125,6 +129,12 @@ def _generate_certs(instances_dict):
         for instance in instances_list:
             _generate_instance_certificate(instance)
     copy(join(CFY_CERTS_PATH, 'ca.crt'), join(CFY_CERTS_PATH, 'ca.pem'))
+
+    # Client cert requires DB user as its CN
+    run(['cfy_manager', 'generate-test-cert', '-s', 'cloudify'])
+    # Client superuser cert requires DB superuser as its CN
+    run(['cfy_manager', 'generate-test-cert', '-s', 'postgres'])
+
     if not exists(CERTS_DIR):
         os.mkdir(CERTS_DIR)
     copy(join(CFY_CERTS_PATH, '.'), CERTS_DIR)
@@ -216,6 +226,10 @@ def _prepare_manager_config_files(template,
             creds=credentials,
             ca_path=CA_PATH,
             ca_key_path=ca_key_path,
+            db_client_cert_path=DB_CLIENT_CERT_PATH,
+            db_client_key_path=DB_CLIENT_KEY_PATH,
+            db_client_su_cert_path=DB_CLIENT_SU_CERT_PATH,
+            db_client_su_key_path=DB_CLIENT_SU_KEY_PATH,
             license_path=join(CLUSTER_INSTALL_DIR, 'license.yaml'),
             load_balancer_ip=load_balancer_ip,
             rabbitmq_cluster=_get_rabbitmq_cluster_members(
