@@ -833,6 +833,16 @@ def _handle_certificates(config, instances_dict):
         copy(expanduser(config.get('ca_cert_path')), CA_PATH)
         if config.get('ca_key_path'):
             copy(expanduser(config.get('ca_key_path')), CA_KEY_PATH)
+        if config.get('db_client_cert_path'):
+            copy(expanduser(config.get('db_client_cert_path')),
+                 DB_CLIENT_CERT_PATH)
+            copy(expanduser(config.get('db_client_key_path')),
+                 DB_CLIENT_KEY_PATH)
+        if config.get('db_client_su_cert_path'):
+            copy(expanduser(config.get('db_client_su_cert_path')),
+                 DB_CLIENT_SU_CERT_PATH)
+            copy(expanduser(config.get('db_client_su_key_path')),
+                 DB_CLIENT_SU_KEY_PATH)
         for instances_list in instances_dict.values():
             for instance in instances_list:
                 copy(instance.provided_cert_path, instance.cert_path)
